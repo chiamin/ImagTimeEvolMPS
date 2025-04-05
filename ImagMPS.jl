@@ -44,7 +44,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
     Ntau = length(auxflds)
 
     # Initialize product states
-    conf_beg = RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
+    conf_beg = [3,2,3,2]#RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
     conf_end = deepcopy(conf_beg)
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
@@ -95,6 +95,9 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
         mps_time += mps_t
         mea_time += mea_t
 
+        println(join(conf_beg," ")," ",join(conf_end," "),"  ",w)
+
+
         if i%100 == 0
             println(keys(obs))
             Eki = getObs(obs, "Ek")
@@ -133,12 +136,12 @@ function main()
     N_samples = 100
 
     # Initialize MPS
-    en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=100, maxdim=[10], cutoff=[1e-14])
+    en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
     println("E0 = ",en0)
 
 
     # Get exact energy from DMRG
-    en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=100, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
+    en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=30, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
     Ek0, EV0 = getEkEV(psi, Lx, Ly, tx, ty, U, xpbc, ypbc)
     Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
     open("data/en0.dat","w") do file   
