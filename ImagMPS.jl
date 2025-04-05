@@ -45,7 +45,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
 
     # Initialize product states
     conf_beg = RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
-    conf_end = RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
+    conf_end = deepcopy(conf_beg)
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
 
