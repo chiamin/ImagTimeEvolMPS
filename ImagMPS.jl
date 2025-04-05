@@ -34,7 +34,7 @@ function getEkEV(mps, Lx, Ly, tx, ty, U, xpbc, ypbc)
     return Ek, EV
 end
 
-function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, fname)
+function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi)
     Nsites = Lx*Ly
     Npar = Nup+Ndn
     tau = dtau * nsteps
@@ -59,35 +59,19 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
     obs["U"] = U
 
     # Initialize MPS
-    #en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=100, maxdim=[10], cutoff=[1e-14])
     ppsi = makeProdMPS(psi)
-    #println("E0 = ",en0)
-
-
-    # Get exact energy from DMRG
-    #=en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=100, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
-    Ek0, EV0 = getEkEV(psi, Lx, Ly, tx, ty, U, xpbc, ypbc)
-    Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
-    open("en0.dat","w") do file
-        println(file,"E0 ",en0)
-        println(file,"Ek0 ",Ek0)
-        println(file,"EV0 ",EV0)
-        println(file,"E_GS ",en_DMRG)
-        println(file,"Ek_GS ",Ek_DMRG)
-        println(file,"EV_GS ",EV_DMRG)
-    end=#
-
-
-    #E_GS, Ek_GS, EV_GS, O = getED0(Lx, xpbc, tx, U, dtau, Ntau)
-    #println("ED E,Ek,EV ",E_GS," ", Ek_GS," ", EV_GS," ",O)
 
     det_time = 0.
     mps_time = 0.
     mea_time = 0.
 
+    dir = "data/"
+    file = open(dir*"/en"*string(nsteps)*".dat","w")
+    file_nup = open(dir*"/nup_"*string(nsteps)*".dat","w")
+    file_ndn = open(dir*"/ndn_"*string(nsteps)*".dat","w")
+
     # Monte Carlo sampling
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
-    file = open(fname,"w")
     for i=1:N_samples
         # Sample the left product state
         mps_t = @elapsed conf_beg, wMPS1 = sampleMPS!(conf_beg, ppsi, phis_up[1], phis_dn[1], latt)
@@ -118,11 +102,17 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
             nupi = getObs(obs, "nup")
             ndni = getObs(obs, "ndn")
             si = getObs(obs, "sign")
-            println(file,i," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
-            println(i," ",Eki/si," ",EVi/si," ",si)
+
+            println(file,i," ",Eki," ",EVi," ",si)
+            println(file_nup,join(nupi, " "))
+            println(file_ndn,join(ndni, " "))
             flush(file)
-            clean_t = @elapsed cleanObs(obs)
-            println("time ",det_t," ",mps_t," ",mea_t," ",clean_t)
+            flush(file_nup)
+            flush(file_nup)
+
+            cleanObs(obs)
+
+            println("time ",det_t," ",mps_t," ",mea_t)
         end
     end
     close(file)
@@ -130,8 +120,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
 end
 
 function main()
-    Lx=4
-    Ly=4
+    Lx=2
+    Ly=2
     tx=ty=1.0
     xpbc=false
     ypbc=false
@@ -140,7 +130,7 @@ function main()
     U = 12.
     dtau = 0.05
     nsteps = 10
-    N_samples = 200000
+    N_samples = 100
 
     # Initialize MPS
     en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=100, maxdim=[10], cutoff=[1e-14])
@@ -151,7 +141,7 @@ function main()
     en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=100, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
     Ek0, EV0 = getEkEV(psi, Lx, Ly, tx, ty, U, xpbc, ypbc)
     Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
-    open("data/en0_4x4_nup2_ndn2.dat","w") do file
+    open("data/en0.dat","w") do file   
         println(file,"E0 ",en0)
         println(file,"Ek0 ",Ek0)
         println(file,"EV0 ",EV0)
@@ -159,10 +149,9 @@ function main()
         println(file,"Ek_GS ",Ek_DMRG)
         println(file,"EV_GS ",EV_DMRG)
     end
-    exit()
-    for nsteps in [10,20,30,40,50,60,70,80]
-        fname = "data/en4x4_nup2_ndn2_Nt"*string(nsteps)*".dat"
-        run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, fname)
+
+    for nsteps in [10]#,20,30,40,50,60,70,80]
+        run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi)
     end
 end
 
