@@ -50,7 +50,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
 
     # Initialize all the determinants
-    phis_up = initPhis(phi1_up, phi1_up, expHk_half, auxflds, expV_up)
+    phis_up = initPhis(phi1_up, phi1_dn, expHk_half, auxflds, expV_up)
     phis_dn = initPhis(phi2_up, phi2_dn, expHk_half, auxflds, expV_dn)
 
     # Initialize observables
