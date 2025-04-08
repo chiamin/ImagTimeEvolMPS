@@ -122,6 +122,14 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
     println("total time ",det_time," ",mps_time," ",mea_time)
 end
 
+function measureMPS(psi)
+    magz = expect(psi,"Sz")
+    for (j,mz) in enumerate(magz)
+        println("$j $mz")
+    end
+end
+
+
 function main()
     Lx=2
     Ly=2
@@ -137,20 +145,29 @@ function main()
 
     # Initialize MPS
     en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
+    # Measure the initial MPS
+    szs = expect(psi,"Sz")
+    nups = expect(psi,"Nup")
+    ndns = expect(psi,"Ndn")
+    print(nups)
     println("E0 = ",en0)
-
 
     # Get exact energy from DMRG
     en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=30, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
     Ek0, EV0 = getEkEV(psi, Lx, Ly, tx, ty, U, xpbc, ypbc)
     Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
-    open("data/en0.dat","w") do file   
+
+    # Write the information for the initial state
+    open("data/init.dat","w") do file
         println(file,"E0 ",en0)
         println(file,"Ek0 ",Ek0)
         println(file,"EV0 ",EV0)
         println(file,"E_GS ",en_DMRG)
         println(file,"Ek_GS ",Ek_DMRG)
         println(file,"EV_GS ",EV_DMRG)
+        println(file,"sz ",szs)
+        println(file,"nup ",ndns)
+        println(file,"ndn ",nups)
     end
 
     for nsteps in [10]#,20,30,40,50,60,70,80]
