@@ -8,7 +8,8 @@ function Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps, maxdim, cu
     ampo = Hubbard(Lx, Ly, tx, ty, U, 0, 0, 0, 0, xpbc, ypbc)
     H = MPO(ampo,sites)
 
-    states = RandomState(N; Nup, Ndn)
+    #states = RandomState(N; Nup, Ndn)
+    states = [isodd(n) ? "Up" : "Dn" for n in 1:N]
     psi0 = MPS(sites, states)
 
     energy,psi = dmrg(H,psi0;nsweeps,maxdim,cutoff)

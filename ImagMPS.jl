@@ -44,7 +44,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
     Ntau = length(auxflds)
 
     # Initialize product states
-    conf_beg = [3,2,3,2]#RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
+    #conf_beg = [3,2,3,2]#RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
+    conf_beg = RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
     conf_end = deepcopy(conf_beg)
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
@@ -67,8 +68,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
 
     dir = "data/"
     file = open(dir*"/en"*string(nsteps)*".dat","w")
-    file_nup = open(dir*"/nup_"*string(nsteps)*".dat","w")
-    file_ndn = open(dir*"/ndn_"*string(nsteps)*".dat","w")
+    file_nup = open(dir*"/nup"*string(nsteps)*".dat","w")
+    file_ndn = open(dir*"/ndn"*string(nsteps)*".dat","w")
 
     # Monte Carlo sampling
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
@@ -111,7 +112,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, p
             println(file_ndn,join(ndni, " "))
             flush(file)
             flush(file_nup)
-            flush(file_nup)
+            flush(file_ndn)
 
             cleanObs(obs)
 
@@ -141,15 +142,13 @@ function main()
     U = 12.
     dtau = 0.05
     nsteps = 10
-    N_samples = 100
+    N_samples = 300
 
     # Initialize MPS
     en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
     # Measure the initial MPS
-    szs = expect(psi,"Sz")
     nups = expect(psi,"Nup")
     ndns = expect(psi,"Ndn")
-    print(nups)
     println("E0 = ",en0)
 
     # Get exact energy from DMRG
@@ -165,7 +164,6 @@ function main()
         println(file,"E_GS ",en_DMRG)
         println(file,"Ek_GS ",Ek_DMRG)
         println(file,"EV_GS ",EV_DMRG)
-        println(file,"sz ",szs)
         println(file,"nup ",ndns)
         println(file,"ndn ",nups)
     end
