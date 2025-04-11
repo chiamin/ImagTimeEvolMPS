@@ -87,55 +87,6 @@ end
 # p = <MPS|i><i|B(x_N)...B(x_1)|j><j|MPS>
 # Here |i> and |j> are the first and the last state in phis,
 # so they will not be updated in this function
-function sampleAuxField_sweep_old!(
-phis_up::Vector{Matrix{T}}, 
-phis_dn::Vector{Matrix{T}}, 
-auxflds::Vector{Vector{Int}}, 
-expHk_half::Matrix{Float64}, 
-expV_up::Vector{Float64}, 
-expV_dn::Vector{Float64}, 
-obs=DefaultDict(0.)::DefaultDict;
-toRight::Bool
-) where T
-    nsteps = length(auxflds)
-    @assert nsteps >= 2
-    @assert length(phis_up) == length(phis_dn) == nsteps+2
-
-    # Left to right
-    O = 0.
-    if toRight
-        for i=2:nsteps+1
-            phi_up, phi_dn, auxflds[i-1], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i-1], expHk_half, expV_up, expV_dn; toRight=true)
-
-            # Measure between phi, phis[i+1]
-            if (i-1 == div(nsteps,2)) && (length(obs) != 0)
-                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs)
-            end
-
-            phis_up[i] = phi_up
-            phis_dn[i] = phi_dn
-        end
-    # Right to left
-    else
-        for i=nsteps+1:-1:2
-            phi_up, phi_dn, auxflds[i-1], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i-1], expHk_half, expV_up, expV_dn; toRight=false)
-
-            # Measure between phis[i], phi
-            if (i-1 == div(nsteps,2)+1) && (length(obs) != 0)
-                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, O, obs)
-            end
-
-            phis_up[i] = phi_up
-            phis_dn[i] = phi_dn
-        end
-    end
-    return O
-end
-
-# Update x_1, ..., x_N with the probability
-# p = <MPS|i><i|B(x_N)...B(x_1)|j><j|MPS>
-# Here |i> and |j> are the first and the last state in phis,
-# so they will not be updated in this function
 function sampleAuxField_sweep!(
 phis_up::Dict{Int,Matrix{T}}, 
 phis_dn::Dict{Int,Matrix{T}}, 
@@ -155,16 +106,17 @@ toRight::Bool
     O = 0.
     if toRight
         for i=1:N
-            phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i], expHk_half, expV_up, expV_dn; toRight=true)
+            phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
+                                                           expHk_half, expV_up, expV_dn; toRight=true)
 
             # Stabilize the determinant
             reOrthoDet!(phi_up)
             reOrthoDet!(phi_dn)
 
             # Measure at the center, between phi, phis[i+1]
-            if (i == div(N,2))
-                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs, para)
-            end
+            #if (i == div(N,2))
+            #    measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
+            #end
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -172,16 +124,17 @@ toRight::Bool
     # Right to left
     else
         for i=N:-1:1
-            phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
+            phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
+                                                           expHk_half, expV_up, expV_dn; toRight=false)
 
             # Stabilize the determinant
             reOrthoDet!(phi_up)
             reOrthoDet!(phi_dn)
 
             # Measure at the center, between phis[i], phi
-            if (i-1 == div(N,2))
-                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, O, obs, para)
-            end
+            #if (i-1 == div(N,2))
+            #    measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, sign(O), obs, para)
+            #end
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn

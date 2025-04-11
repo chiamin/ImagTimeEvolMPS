@@ -104,9 +104,9 @@ function sampleBond(conf::Vector{Int64}, mps, phi_up::Matrix{T}, phi_dn::Matrix{
 end
 
 function sampleMPS!(conf::Vector{Int64}, psi, phi_up::Matrix{T}, phi_dn::Matrix{T}, latt, obs=DefaultDict(0.)) where T
-    w = 0.
+    O = 0.
     for bond in latt.bonds
-        conf, w = sampleBond(conf, psi, phi_up, phi_dn, bond)
+        conf, O = sampleBond(conf, psi, phi_up, phi_dn, bond)
 
         # Measure
         if length(obs) != 0
@@ -114,5 +114,5 @@ function sampleMPS!(conf::Vector{Int64}, psi, phi_up::Matrix{T}, phi_dn::Matrix{
             measure!(prod_up, prod_dn, phi_up, phi_dn, w, obs)
         end
     end
-    return conf, w
+    return conf, O
 end

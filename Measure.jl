@@ -47,7 +47,11 @@ function cleanObs!(obs::Dict{String,Any})
     obs["count"] = 0.
 end
 
-function measure!(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, phi2_dn::Matrix{T}, w::Float64, obs::Dict{String,Any}, para::Dict{String,Any}) where T
+function measure!(
+    phi1_up::Matrix{T}, phi1_dn::Matrix{T},
+    phi2_up::Matrix{T}, phi2_dn::Matrix{T},
+    sign::Float64, obs::Dict{String,Any}, para::Dict{String,Any}
+) where T
     Hk = para["Hk"]
     U = para["U"]
 
@@ -57,13 +61,13 @@ function measure!(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, ph
     Ek = kinetic_energy(G_up, G_dn, Hk)
     EV = potential_energy(G_up, G_dn, U)
     nup, ndn = get_density(G_up, G_dn)
-    sign_w = sign(w)
+    #sign_w = sign(w)
 
-    measure!(obs, "Ek", Ek*sign_w)
-    measure!(obs, "EV", EV*sign_w)
-    measure!(obs, "nup", nup*sign_w)
-    measure!(obs, "ndn", ndn*sign_w)
-    measure!(obs, "sign", sign_w)
+    measure!(obs, "Ek", Ek*sign)
+    measure!(obs, "EV", EV*sign)
+    measure!(obs, "nup", nup*sign)
+    measure!(obs, "ndn", ndn*sign)
+    measure!(obs, "sign", sign)
 
     # If "count" does not exist, set to 1; otherwise add 1
     if !haskey(obs,"count")

@@ -80,28 +80,30 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
     for i=1:N_samples
         # Sample the left product state
-        # wMPS1: the weight from the MPS1
-        mps_t = @elapsed conf_beg, wMPS1 = sampleMPS!(conf_beg, mpsM, phis_up[1], phis_dn[1], latt)
+        # OMPS1: <MPS|conf1>
+        mps_t = @elapsed conf_beg, OMPS1 = sampleMPS!(conf_beg, mpsM, phis_up[1], phis_dn[1], latt)
         timer["MPS"] += mps_t
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
 
         # Sample the auxiliary fields from left to right
-        det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=true)
+        # ODet: <conf1|BB...B|conf2>
+        det_t = @elapsed ODet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=true)
         timer["Det"] += det_t
 
         # Sample the right product state
-        # wMPS2: the weight from the MPS2
-        mps_t = @elapsed conf_end, wMPS2 = sampleMPS!(conf_end, mpsM, phis_up[Ntau], phis_dn[Ntau], latt)
+        # OMPS2: <conf2|MPS>
+        mps_t = @elapsed conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phis_up[Ntau], phis_dn[Ntau], latt)
         timer["MPS"] += mps_t
         phis_up[Ntau+1], phis_dn[Ntau+1] = prodDetUpDn(conf_end)
 
         # Sample the auxiliary fields from right to left
-        det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=false)
+        # ODet: <conf1|BB...B|conf2>
+        det_t = @elapsed ODet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=false)
         timer["Det"] += det_t
 
         # Measure
-        w = wMPS1 * wDet * wMPS2
-        mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], w, obs, para)
+        w = conj(OMPS1) * ODet * OMPS2
+        mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], sign(w), obs, para)
         timer["Mea"] += mea_t
 
         # Write the observables
