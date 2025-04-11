@@ -1,4 +1,6 @@
 import LinearAlgebra as linalg
+include("Timer.jl")
+using .Timer
 
 function overlap(phi1::Matrix{T}, phi2::Matrix{T})::T where T
     return linalg.det(phi1' * phi2)
@@ -24,19 +26,17 @@ function randomDet(Nsites::Int, Npar::Int; dtype::Type=Float64)
     return Q[:,1:Npar]
 end
 
-# Stabilize all the determinants in phis_up and phis_dn.
-# For each determinant phi, re-orthogonalize its orbitals by a QR decomposition phi=QR.
-# Replace phi by Q by reweighting it with det(R).
-# Input: phis_up, phis_dn, Dict{Int,Matrix{T}}: each contains a list of determinant matrices
-# In-place: Replace all the determinant by Q
-# The factor det(R) is discarded in this function.
-function stabilizeDet!(phis_up::Dict{Int,Matrix{T}}, phis_dn::Dict{Int,Matrix{T}}) where T
-    for i in keys(phis_up)
-        Qup, Rup = linalg.qr(phis_up[i])
-        Qdn, Rdn = linalg.qr(phis_dn[i])
-        phis_up[i] = Qup
-        phis_dn[i] = Qdn
-    end
+# Re-orthogonalize a determinant phi by a QR decomposition, phi=QR.
+# Replace phi by Q.
+# The reweighting factor det(R) is discarded.
+# Note: det((Q'R')^\dagger QR) = det(Q'^\dagger Q) det(R')^* det(R)
+function reOrthoDet!(phi::Matrix{T}) where T
+    t = time_ns()
+
+    F = linalg.qr(phi)
+    phi .= Matrix(F.Q)
+
+    timer["reOrtho"] += (time_ns() - t) / 1e9
 end
 
 # conf = {0, 0, 1, 0, 1, ...} is the occupations

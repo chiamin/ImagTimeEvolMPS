@@ -6,6 +6,7 @@ include("Initial.jl")
 using PyPlot
 using LinearAlgebra
 
+# <phi|B_V|phi>
 function overlap2(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, phi2_dn::Matrix{T}, auxf::Vector{Int}, expV_up::Vector{Float64}, expV_dn::Vector{Float64}) where T
     phi_up = copy(phi1_up)
     phi_dn = copy(phi1_dn)
@@ -44,23 +45,26 @@ toRight::Bool
         return field
     end
 
+    # Apply B_K
     phi1_up = expHk_half * phi1_up
     phi1_dn = expHk_half * phi1_dn
     phi2_up = expHk_half * phi2_up
     phi2_dn = expHk_half * phi2_dn
+    # ----  Apply B_V ----
     auxfld = copy(auxfld)
-    O = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, expV_up, expV_dn)
+    O = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, expV_up, expV_dn)              # initial overlap
+    # Sample the auxiliary fields at all sites
     for i=1:Nsites
-        auxfld_new = flip_field(auxfld, i)
-        O_new = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld_new, expV_up, expV_dn)
+        auxfld_new = flip_field(auxfld, i)                                                  # flip the field on one site
+        O_new = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld_new, expV_up, expV_dn)  # compute the new overlap
 
-        P_new = abs(O_new) / (abs(O) + abs(O_new))
-        if rand() < P_new
+        P_new = abs(O_new) / (abs(O) + abs(O_new))                                          # compute the probability
+        if rand() < P_new                                                                   # sample the field
             O = O_new
             auxfld = auxfld_new
         end
     end
-
+    # Apply B_V on phi1 or phi2 depending on the sweeping direction
     if toRight
         phi_up = copy(phi1_up)
         phi_dn = copy(phi1_dn)
@@ -72,6 +76,8 @@ toRight::Bool
         applyV!(phi_up, auxfld, expV_up)
         applyV!(phi_dn, auxfld, expV_dn)
     end
+    # --------------------
+    # Apply B_K
     phi_up = expHk_half * phi_up
     phi_dn = expHk_half * phi_dn
     return phi_up, phi_dn, auxfld, O
@@ -106,9 +112,6 @@ toRight::Bool
                 measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs)
             end
 
-            cc = applyExpH(phis_up[i-1], auxflds[i-1], expHk_half, expV_up)
-            println("kkk ",norm(cc-phi_up))
-
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
         end
@@ -121,9 +124,6 @@ toRight::Bool
             if (i-1 == div(nsteps,2)+1) && (length(obs) != 0)
                 measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, O, obs)
             end
-
-            cc = applyExpH(phis_up[i+1], auxflds[i-1], expHk_half, expV_up)
-            println("ggg ",norm(cc-phi_up))
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -156,6 +156,10 @@ toRight::Bool
         for i=1:N
             phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i], expHk_half, expV_up, expV_dn; toRight=true)
 
+            # Stabilize the determinant
+            reOrthoDet!(phi_up)
+            reOrthoDet!(phi_dn)
+
             # Measure between phi, phis[i+1]
             if (length(obs) != 0)# && (i == div(N,2))
                 measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs)
@@ -168,6 +172,10 @@ toRight::Bool
     else
         for i=N:-1:1
             phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
+
+            # Stabilize the determinant
+            reOrthoDet!(phi_up)
+            reOrthoDet!(phi_dn)
 
             # Measure between phis[i], phi
             if (length(obs) != 0)# && (i-1 == div(N,2))

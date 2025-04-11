@@ -8,6 +8,8 @@ include("Hamiltonian.jl")
 include("dmrg.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
+include("Timer.jl")
+using .Timer
 
 function getED0(L, pbc, t, U, dtau, Ntau, U0)
     psi, E0, Hk, HV, H = ED_GS(L, pbc, t, U0)
@@ -35,7 +37,7 @@ function getEkEV(mps, Lx, Ly, tx, ty, U, xpbc, ypbc)
     return Ek, EV
 end
 
-function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step, stblz_step)
+function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step)
     Nsites = Lx*Ly
     Npar = Nup+Ndn
     tau = dtau * nsteps
@@ -63,9 +65,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Initialize MPS machine which is efficient in computing the overlap with a product state
     mpsM = makeProdMPS(mps)
 
-    det_time = 0.
-    mps_time = 0.
-    mea_time = 0.
+    # Reset the timer
+    empty!(timer)
 
     dir = "data/"
     file = open(dir*"/ntau"*string(nsteps)*".dat","w")
@@ -78,29 +79,31 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         # Sample the left product state
         # wMPS1: the weight from the MPS1
         mps_t = @elapsed conf_beg, wMPS1 = sampleMPS!(conf_beg, mpsM, phis_up[1], phis_dn[1], latt)
+        timer["MPS"] += mps_t
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
 
         # Sample the auxiliary fields from left to right
         det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn; toRight=true)
+        timer["Det"] += det_t
 
         # Sample the right product state
         # wMPS2: the weight from the MPS2
         mps_t = @elapsed conf_end, wMPS2 = sampleMPS!(conf_end, mpsM, phis_up[Ntau], phis_dn[Ntau], latt)
+        timer["MPS"] += mps_t
         phis_up[Ntau+1], phis_dn[Ntau+1] = prodDetUpDn(conf_end)
 
         # Sample the auxiliary fields from right to left
         det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn; toRight=false)
+        timer["Det"] += det_t
 
         # Measure
         w = wMPS1 * wDet * wMPS2
         mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], w, obs)
-
-        det_time += det_t
-        mps_time += mps_t
-        mea_time += mea_t
+        timer["Mea"] += mea_t
 
         # Write the observables
         if i%write_step == 0
+            println(nsteps,": ",i,"/",N_samples)
             Eki = getObs(obs, "Ek")
             EVi = getObs(obs, "EV")
             nupi = getObs(obs, "nup")
@@ -112,16 +115,10 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
             cleanObs(obs)
         end
-
-        # Stabilize the determinants
-        if i%stblz_step == 0
-            stabilizeDet!(phis_up, phis_dn)
-        end
     end
     close(file)
-    println("total time: ")
-    println(rpad("det",8),rpad("mps",8),rpad("mea",8))
-    println(rpad(round(det_time,digits=3),8),rpad(round(mps_time,digits=3),8),rpad(round(mea_time,digits=3),8))
+    println("Total time: ")
+    display(timer)
 end
 
 function measureMPS(psi)
@@ -143,9 +140,8 @@ function main()
     U = 12.
     dtau = 0.05
     nsteps = 10
-    N_samples = 30
-    write_step = 10
-    stblz_step = 10
+    N_samples = 300000
+    write_step = 100
 
     # Initialize MPS
     en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
@@ -171,8 +167,8 @@ function main()
         println(file,"ndn ",nups)
     end
 
-    for nsteps in [10,20,30]
-        run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, write_step, stblz_step)
+    for nsteps in [10,20,30,40,50,60,70,80]
+        run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, write_step)
     end
 end
 
