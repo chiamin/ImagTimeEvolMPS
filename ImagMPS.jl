@@ -59,8 +59,11 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
     # Initialize observables
     obs = Dict{String,Any}()
-    obs["Hk"] = Hk
-    obs["U"] = U
+
+    # Store some objects that will be used in measurement
+    para = Dict{String,Any}()
+    para["Hk"] = Hk
+    para["U"] = U
 
     # Initialize MPS machine which is efficient in computing the overlap with a product state
     mpsM = makeProdMPS(mps)
@@ -83,7 +86,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
 
         # Sample the auxiliary fields from left to right
-        det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn; toRight=true)
+        det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=true)
         timer["Det"] += det_t
 
         # Sample the right product state
@@ -93,12 +96,12 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         phis_up[Ntau+1], phis_dn[Ntau+1] = prodDetUpDn(conf_end)
 
         # Sample the auxiliary fields from right to left
-        det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn; toRight=false)
+        det_t = @elapsed wDet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=false)
         timer["Det"] += det_t
 
         # Measure
         w = wMPS1 * wDet * wMPS2
-        mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], w, obs)
+        mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], w, obs, para)
         timer["Mea"] += mea_t
 
         # Write the observables
@@ -113,7 +116,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
             println(file,i," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
             flush(file)
 
-            cleanObs(obs)
+            cleanObs!(obs)
         end
     end
     close(file)

@@ -36,29 +36,20 @@ function measure!(obs::Dict{String,Any}, name::String, value)
     else
         obs[name] += value
     end
-
-    # Store the name
-    if !haskey(obs,"obss")
-        obs["obss"] = Set{String}([name])
-    else
-        push!(obs["obss"], name)
-    end
 end
 
 function getObs(obs::Dict{String,Any}, name::String)
     return obs[name] / obs["count"]
 end
 
-function cleanObs(obs::Dict{String,Any})
-    for name in obs["obss"]
-        delete!(obs, name)
-    end
+function cleanObs!(obs::Dict{String,Any})
+    empty!(obs)
     obs["count"] = 0.
 end
 
-function measure!(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, phi2_dn::Matrix{T}, w::Float64, obs::Dict{String,Any}) where T
-    Hk = obs["Hk"]
-    U = obs["U"]
+function measure!(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, phi2_dn::Matrix{T}, w::Float64, obs::Dict{String,Any}, para::Dict{String,Any}) where T
+    Hk = para["Hk"]
+    U = para["U"]
 
     G_up = Greens_function(phi1_up, phi2_up)
     G_dn = Greens_function(phi1_dn, phi2_dn)
@@ -73,5 +64,10 @@ function measure!(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, ph
     measure!(obs, "nup", nup*sign_w)
     measure!(obs, "ndn", ndn*sign_w)
     measure!(obs, "sign", sign_w)
-    obs["count"] = get!(obs, "count", 0.) + 1.    # If "count" does not exist, set to 1; otherwise add 1
+
+    # If "count" does not exist, set to 1; otherwise add 1
+    if !haskey(obs,"count")
+        obs["count"] = 0.
+    end
+    obs["count"] += 1.
 end

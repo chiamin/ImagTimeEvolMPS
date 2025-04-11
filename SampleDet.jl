@@ -143,7 +143,8 @@ auxflds::Vector{Vector{Int}},
 expHk_half::Matrix{Float64}, 
 expV_up::Vector{Float64}, 
 expV_dn::Vector{Float64}, 
-obs=DefaultDict(0.)::DefaultDict;
+obs::Dict{String,Any},
+para::Dict{String,Any};
 toRight::Bool
 ) where T
     N = length(auxflds)
@@ -161,9 +162,9 @@ toRight::Bool
             reOrthoDet!(phi_dn)
 
             # Measure between phi, phis[i+1]
-            if (length(obs) != 0)# && (i == div(N,2))
-                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs)
-            end
+            #if (length(obs) != 0)# && (i == div(N,2))
+                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs, para)
+            #end
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -178,9 +179,9 @@ toRight::Bool
             reOrthoDet!(phi_dn)
 
             # Measure between phis[i], phi
-            if (length(obs) != 0)# && (i-1 == div(N,2))
-                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, O, obs)
-            end
+            #if (length(obs) != 0)# && (i-1 == div(N,2))
+                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, O, obs, para)
+            #end
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -188,17 +189,3 @@ toRight::Bool
     end
     return O
 end
-
-
-function applyExpH(
-phi::Matrix{T}, 
-auxfld::Vector{Int}, 
-expHk_half::Matrix{Float64}, 
-expV::Vector{Float64}, 
-) where T
-    Bphi = expHk_half * phi
-    applyV!(Bphi, auxfld, expV)
-    Bphi = expHk_half * Bphi
-    return Bphi
-end
-

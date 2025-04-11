@@ -21,3 +21,16 @@ function applyV!(phi::Matrix{T}, aux_flds::Vector{Int64}, expV::Vector{Float64})
         phi[i,:] *= expV[x]
     end
 end
+
+function applyExpH(
+phi::Matrix{T}, 
+auxfld::Vector{Int}, 
+expHk_half::Matrix{Float64}, 
+expV::Vector{Float64}, 
+) where T
+    Bphi = expHk_half * phi
+    applyV!(Bphi, auxfld, expV)
+    Bphi = expHk_half * Bphi
+    return Bphi
+end
+
