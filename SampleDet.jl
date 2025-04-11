@@ -2,83 +2,9 @@ include("H_k.jl")
 include("HSTrans.jl")
 include("DetTools.jl")
 include("Measure.jl")
+include("Initial.jl")
 using PyPlot
 using LinearAlgebra
-
-function initQMC(Lx::Int, Ly::Int, Lz::Int, tx::Float64,ty::Float64, tz::Float64, U::Float64, xpbc::Bool, ypbc::Bool, zpbc::Bool, dtau::Float64, nsteps::Int, Nsites::Int
-)::Tuple{Matrix{Float64}, Matrix{Float64}, Vector{Float64}, Vector{Float64}, Vector{Vector{Int}}}
-    Hk = H_K(Lx,Ly,Lz,tx,ty,tz,xpbc,ypbc,zpbc)
-
-    gamma = acosh(exp(0.5*dtau*U))
-    expV_up = [exp(gamma),exp(-gamma)]
-    expV_dn = [exp(-gamma),exp(gamma)]
-
-    expHk_half = exp(-0.5*dtau*Hk)
-
-    auxflds = []
-    for i=1:2*nsteps
-        push!(auxflds, ones(Int,Nsites))
-    end
-
-    return Hk, expHk_half, expV_up, expV_dn, auxflds
-end
-
-# The center is at the left
-# Suppose <phi_beg| B B |phi_end> 
-# If center at the very left: phis = <phi_beg|, B|phi_end>, BB|phi_end>, |phi_end>
-# If center at the very right: phis = <phi_beg|, <phi_beg|BB, <phi_beg|B, |phi_end>
-function initPhis_old(phi_beg::Matrix{T}, phi_end::Matrix{T}, expHk_half::Matrix{Float64}, auxflds::Vector{Vector{Int}}, expV::Vector{Float64})::Vector{Matrix{T}} where T
-    nsteps = length(auxflds)
-    @assert nsteps >= 2
-
-    phis = []
-
-    # Last one
-    push!(phis, phi_end)
-
-    # Middle ones
-    phi = copy(phi_end)
-    for i=1:nsteps
-        phi = expHk_half * phi
-        applyV!(phi, auxflds[i], expV)
-        phi = expHk_half * phi
-        pushfirst!(phis, phi)
-    end
-
-    # First one
-    pushfirst!(phis, phi_beg)
-
-    @assert length(phis) == nsteps+2
-
-    return phis
-end
-
-# The center is at the left
-# Suppose <phi_beg| B B |phi_end> 
-# If center at the very left: phis = <phi_beg|, B|phi_end>, BB|phi_end>, |phi_end>
-# If center at the very right: phis = <phi_beg|, <phi_beg|BB, <phi_beg|B, |phi_end>
-function initPhis(phi_beg::Matrix{T}, phi_end::Matrix{T}, expHk_half::Matrix{Float64}, auxflds::Vector{Vector{Int}}, expV::Vector{Float64})::Dict{Int,Matrix{T}} where T
-    N = length(auxflds)
-    @assert N >= 2
-
-    phis = Dict{Int,Matrix{T}}()
-
-    # Last one
-    phis[N+1] = phi_end
-
-    # Middle ones
-    phi = copy(phi_end)
-    for i=N:-1:1
-        phis[i] = applyExpH(phis[i+1], auxflds[i], expHk_half, expV)
-    end
-
-    # First one
-    phis[0] = phi_beg
-
-    @assert length(phis) == N+2
-
-    return phis
-end
 
 function overlap2(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, phi2_dn::Matrix{T}, auxf::Vector{Int}, expV_up::Vector{Float64}, expV_dn::Vector{Float64}) where T
     phi_up = copy(phi1_up)
