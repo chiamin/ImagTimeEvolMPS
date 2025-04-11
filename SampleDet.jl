@@ -161,10 +161,10 @@ toRight::Bool
             reOrthoDet!(phi_up)
             reOrthoDet!(phi_dn)
 
-            # Measure between phi, phis[i+1]
-            #if (length(obs) != 0)# && (i == div(N,2))
+            # Measure at the center, between phi, phis[i+1]
+            if (i == div(N,2))
                 measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], O, obs, para)
-            #end
+            end
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -178,10 +178,10 @@ toRight::Bool
             reOrthoDet!(phi_up)
             reOrthoDet!(phi_dn)
 
-            # Measure between phis[i], phi
-            #if (length(obs) != 0)# && (i-1 == div(N,2))
+            # Measure at the center, between phis[i], phi
+            if (i-1 == div(N,2))
                 measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, O, obs, para)
-            #end
+            end
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
