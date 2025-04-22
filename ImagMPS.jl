@@ -9,7 +9,9 @@ include("dmrg.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
-using .Timer
+
+seed = 1234567890123
+Random.seed!(seed)
 
 function getED0(L, pbc, t, U, dtau, Ntau, U0)
     psi, E0, Hk, HV, H = ED_GS(L, pbc, t, U0)
@@ -47,8 +49,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     Ntau = length(auxflds)
 
     # Initialize product states
-    #conf_beg = [3,2,3,2]#RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
-    conf_beg = RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
+    conf_beg = [3,2,2,3]
+    #conf_beg = RandomConf(Nsites; Nup=Nup, Ndn=Ndn)
     conf_end = deepcopy(conf_beg)
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
@@ -102,9 +104,9 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         timer["Det"] += det_t
 
         # Measure
-        w = conj(OMPS1) * ODet * OMPS2
-        mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], sign(w), obs, para)
-        timer["Mea"] += mea_t
+        #w = conj(OMPS1) * ODet * OMPS2
+        #mea_t = @elapsed measure!(phis_up[0], phis_dn[0], phis_up[1], phis_dn[1], sign(w), obs, para)
+        #timer["Mea"] += mea_t
 
         # Write the observables
         if i%write_step == 0
@@ -145,7 +147,7 @@ function main()
     U = 12.
     dtau = 0.05
     nsteps = 10
-    N_samples = 300000
+    N_samples = 30000
     write_step = 100
 
     # Initialize MPS

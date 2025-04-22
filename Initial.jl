@@ -72,7 +72,7 @@ function initPhis(phi_beg::Matrix{T}, phi_end::Matrix{T}, expHk_half::Matrix{Flo
 
     # Reorthogonalize all the determinants
     for (i,phi) in phis
-        reOrthoDet!(phi)
+        phi = reOrthoDet(phi)
     end
 
     @assert length(phis) == N+2

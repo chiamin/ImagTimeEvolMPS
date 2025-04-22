@@ -12,7 +12,6 @@ include("DetTools.jl")
 # <phis[2]| = <phiL|B1.B2
 # |phis[3]> =             B3...BN|phiR>
 # |phis[N]> =                  BN|phiR>
-
 mutable struct DetChain{T}
     phiL::Matrix{T}
     phiR::Matrix{T}
@@ -38,4 +37,9 @@ function makeDetChain(phiL::Matrix{T}, phiR::Matrix{T}, expHk_half::Matrix{Float
     end
 
     return DetChain(phiL, phiR, phis, 1)
+end
+
+mutable struct DetChainUpDn{T}
+    detsUp::DetChain{T}
+    detsDn::DetChain{T}
 end

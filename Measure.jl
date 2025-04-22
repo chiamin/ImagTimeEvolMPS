@@ -61,7 +61,6 @@ function measure!(
     Ek = kinetic_energy(G_up, G_dn, Hk)
     EV = potential_energy(G_up, G_dn, U)
     nup, ndn = get_density(G_up, G_dn)
-    #sign_w = sign(w)
 
     measure!(obs, "Ek", Ek*sign)
     measure!(obs, "EV", EV*sign)
@@ -74,4 +73,16 @@ function measure!(
         obs["count"] = 0.
     end
     obs["count"] += 1.
+end
+
+
+# ======================== Debug functions ==============================
+function test_GreensFunction(phi1, phi2)
+    p1 = reOrthoDet(phi1)
+    p2 = reOrthoDet(phi2)
+    G = Greens_function(phi1, phi2)
+    G_ortho = Greens_function(p1, p2)
+    #@assert norm(p1-phi1) > 1e-4
+    #@assert norm(p2-phi2) > 1e-4
+    @assert norm(G-G_ortho) < 1e-12
 end

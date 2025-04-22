@@ -57,9 +57,9 @@ toRight::Bool
     for i=1:Nsites
         auxfld_new = flip_field(auxfld, i)                                                  # flip the field on one site
         O_new = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld_new, expV_up, expV_dn)  # compute the new overlap
-
         P_new = abs(O_new) / (abs(O) + abs(O_new))                                          # compute the probability
-        if rand() < P_new                                                                   # sample the field
+        rrr = rand()
+        if rrr < P_new                                                                   # sample the field
             O = O_new
             auxfld = auxfld_new
         end
@@ -109,14 +109,16 @@ toRight::Bool
             phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
                                                            expHk_half, expV_up, expV_dn; toRight=true)
 
-            # Stabilize the determinant
-            reOrthoDet!(phi_up)
-            reOrthoDet!(phi_dn)
+            #O *= (Osign_up * Osign_dn)
 
             # Measure at the center, between phi, phis[i+1]
-            #if (i == div(N,2))
-            #    measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
-            #end
+            if (i == div(N,2))
+                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
+            end
+
+            # Stabilize the determinant
+            phi_up = reOrthoDet(phi_up)
+            phi_dn = reOrthoDet(phi_dn)
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -127,18 +129,43 @@ toRight::Bool
             phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
                                                            expHk_half, expV_up, expV_dn; toRight=false)
 
-            # Stabilize the determinant
-            reOrthoDet!(phi_up)
-            reOrthoDet!(phi_dn)
+            #O *= (Osign_up * Osign_dn)
 
             # Measure at the center, between phis[i], phi
-            #if (i-1 == div(N,2))
-            #    measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, sign(O), obs, para)
-            #end
+            if (i-1 == div(N,2))
+                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, sign(O), obs, para)
+            end
+
+            # Stabilize the determinant
+            phi_up = reOrthoDet(phi_up)
+            phi_dn = reOrthoDet(phi_dn)
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
         end
     end
     return O
+end
+
+# ================================== debug code ========================================
+function check_overlap(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, auxfld_new, expV_up, expV_dn)
+    p1up = reOrthoDet(phi1_up)
+    p1dn = reOrthoDet(phi1_dn)
+    p2up = reOrthoDet(phi2_up)
+    p2dn = reOrthoDet(phi2_dn)
+    O = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, expV_up, expV_dn)
+    O_new = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld_new, expV_up, expV_dn)
+    O_orth = overlap2(p1up, p1dn, p2up, p2dn, auxfld, expV_up, expV_dn)
+    O_orth_new = overlap2(p1up, p1dn, p2up, p2dn, auxfld_new, expV_up, expV_dn)
+    # Check overlap
+    #@assert abs(O - O_orth) > 1e-4
+    #@assert abs(O_new - O_orth_new) > 1e-4
+    @assert abs(O/O_new - O_orth/O_orth_new) < 1e-10
+    # Check sign
+    @assert sign(O) == sign(O_orth)
+    @assert sign(O_new) == sign(O_orth_new)
+    # Check probability
+    P = abs(O_new) / (abs(O) + abs(O_new))
+    P_orth = abs(O_orth_new) / (abs(O_orth) + abs(O_orth_new))
+    @assert abs(P - P_orth) < 1e-12
 end
