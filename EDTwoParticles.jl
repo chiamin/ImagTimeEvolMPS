@@ -1,4 +1,3 @@
-include("H_k.jl")
 include("DetTools.jl")
 include("Hamiltonian.jl")
 

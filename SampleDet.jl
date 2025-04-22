@@ -1,4 +1,3 @@
-include("H_k.jl")
 include("HSTrans.jl")
 include("DetTools.jl")
 include("Measure.jl")
@@ -115,8 +114,8 @@ toRight::Bool
             end
 
             # Stabilize the determinant
-            phi_up = reOrthoDet(phi_up)
-            phi_dn = reOrthoDet(phi_dn)
+            #phi_up = reOrthoDet(phi_up)
+            #phi_dn = reOrthoDet(phi_dn)
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -133,8 +132,8 @@ toRight::Bool
             end
 
             # Stabilize the determinant
-            phi_up = reOrthoDet(phi_up)
-            phi_dn = reOrthoDet(phi_dn)
+            #phi_up = reOrthoDet(phi_up)
+            #phi_dn = reOrthoDet(phi_dn)
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn

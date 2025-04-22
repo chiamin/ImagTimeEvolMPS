@@ -1,6 +1,5 @@
 import Random
 using LinearAlgebra
-include("H_k.jl")
 include("HSTrans.jl")
 include("DetTools.jl")
 include("SampleDet.jl")
@@ -147,7 +146,7 @@ function main()
     U = 12.
     dtau = 0.05
     nsteps = 10
-    N_samples = 300
+    N_samples = 30000
     write_step = 100
 
     # Initialize MPS
@@ -174,7 +173,7 @@ function main()
         println(file,"ndn ",nups)
     end
 
-    for nsteps in [10]#,20,30,40,50,60,70,80]
+    for nsteps in [10,20,30,40,50,60,70,80]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, write_step)
     end
 end
