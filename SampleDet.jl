@@ -109,8 +109,6 @@ toRight::Bool
             phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
                                                            expHk_half, expV_up, expV_dn; toRight=true)
 
-            #O *= (Osign_up * Osign_dn)
-
             # Measure at the center, between phi, phis[i+1]
             if (i == div(N,2))
                 measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
@@ -128,8 +126,6 @@ toRight::Bool
         for i=N:-1:1
             phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
                                                            expHk_half, expV_up, expV_dn; toRight=false)
-
-            #O *= (Osign_up * Osign_dn)
 
             # Measure at the center, between phis[i], phi
             if (i-1 == div(N,2))
@@ -158,8 +154,6 @@ function check_overlap(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, auxfld_new, e
     O_orth = overlap2(p1up, p1dn, p2up, p2dn, auxfld, expV_up, expV_dn)
     O_orth_new = overlap2(p1up, p1dn, p2up, p2dn, auxfld_new, expV_up, expV_dn)
     # Check overlap
-    #@assert abs(O - O_orth) > 1e-4
-    #@assert abs(O_new - O_orth_new) > 1e-4
     @assert abs(O/O_new - O_orth/O_orth_new) < 1e-10
     # Check sign
     @assert sign(O) == sign(O_orth)

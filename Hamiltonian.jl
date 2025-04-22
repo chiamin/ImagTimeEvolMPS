@@ -171,6 +171,73 @@ function SpinlessHamilt(Lx, Ly, tx, ty, tpr, tppx, tppy, mu, periodic_x, periodi
     return ampo
 end
 
+function Hk_onebody(Lx, Ly, tx, ty, tpr, tppx, tppy, periodic_x, periodic_y)
+    N = Lx * Ly
+
+    Hk = zeros(N,N)
+    for xi=1:Lx
+        for yi=1:Ly
+            i = mix_ind(xi,yi,Lx,Ly)
+            xp = xi+1
+            yp = yi+1
+            xn = xi-1
+            xpp = xi+2
+            ypp = yi+2
+
+            if xp > Lx && periodic_x
+                xp -= Lx
+            end
+            if yp > Ly && periodic_y
+                yp -= Ly
+            end
+            if xn < 1 && periodic_x
+                xn += Lx
+            end
+            if xpp > Lx && periodic_x
+                xpp -= Lx
+            end
+            if ypp > Ly && periodic_y
+                ypp -= Ly
+            end
+
+
+            if xp <= Lx
+                j = mix_ind(xp,yi,Lx,Ly)
+                Hk[i,j] = Hk[j,i] = -tx
+            end
+
+            if yp <= Ly
+                j = mix_ind(xi,yp,Lx,Ly)
+                Hk[i,j] = Hk[j,i] = -ty
+
+                if xp <= Lx
+                    j = mix_ind(xp,yp,Lx,Ly)
+                    Hk[i,j] = Hk[j,i] = -tpr
+                end
+
+                if xn >= 1
+                    j = mix_ind(xn,yp,Lx,Ly)
+                    Hk[i,j] = Hk[j,i] = -tpr
+                end
+            end
+
+            if xpp <= Lx
+                if !(xpp < xi && Lx <= 4)
+                    j = mix_ind(xpp,yi,Lx,Ly)
+                    Hk[i,j] = Hk[j,i] = -tppx
+                end
+            end
+            if ypp <= Ly
+                if !(ypp < yi && Ly <= 4)
+                  j = mix_ind(xi,ypp,Lx,Ly)
+                  Hk[i,j] = Hk[j,i] = -tppy
+                end
+            end
+        end
+    end
+    return Hk
+end
+
 function RandomState(Nsite; Nup, Ndn, seed=1234567890123)
     println("RandomMPS seed =",seed)
     Random.seed!(seed)

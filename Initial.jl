@@ -1,8 +1,8 @@
 include("HSTrans.jl")
 
-function initQMC(Lx::Int, Ly::Int, Lz::Int, tx::Float64,ty::Float64, tz::Float64, U::Float64, xpbc::Bool, ypbc::Bool, zpbc::Bool, dtau::Float64, nsteps::Int, Nsites::Int
+function initQMC(Lx::Int, Ly::Int, tx::Float64, ty::Float64, U::Float64, xpbc::Bool, ypbc::Bool, dtau::Float64, nsteps::Int, Nsites::Int
 )::Tuple{Matrix{Float64}, Matrix{Float64}, Vector{Float64}, Vector{Float64}, Vector{Vector{Int}}}
-    Hk = H_K(Lx,Ly,Lz,tx,ty,tz,xpbc,ypbc,zpbc)
+    Hk = Hk_onebody(Lx, Ly, tx, ty, 0., 0., 0., xpbc, ypbc)
 
     gamma = acosh(exp(0.5*dtau*U))
     expV_up = [exp(gamma),exp(-gamma)]
