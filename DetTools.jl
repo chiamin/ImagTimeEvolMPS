@@ -31,18 +31,14 @@ end
 # Note: det((Q'R')^\dagger QR) = det(Q'^\dagger Q) det(R')^* det(R)
 function reOrthoDet(phi::Matrix{T}) where T
     t = time_ns()
+    # QR decomposition
     F = linalg.qr(phi)
+    # Replace phi by Q
     ncols = size(phi,2)
     Q = F.Q[:, 1:ncols]
-    # fix the sign by swapping two columns in Q
+    # Fix the sign by swapping two columns in Q
     if sign(det(F.R)) < 0.
-        #println(overlap(Q,Q))
-        #QQ = copy(Q)
         Q[:, [1, 2]] = Q[:, [2, 1]]
-        #display(Q)
-        #display(QQ)
-        #println(overlap(QQ,Q))
-        #error("ssss")
     end
     timer["reOrtho"] += (time_ns() - t) / 1e9
     return Q

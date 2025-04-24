@@ -15,7 +15,7 @@ include("ProdMPS.jl")
 # An MPS has the ordering: 1_up, 1_dn, 2_up, 2_dn, ....
 # A determinant has ordering: 1_up, 2_up, ..., 1_dn, 2_dn, ...
 # The sign is determined by the number of swaps from MPS ordering to determinant ordering
-function relativeSign(conf::Vector{Int64})
+function relativeSign(conf::Vector{Int})
     up_sites, dn_sites = getOccupiedSites(conf)
     N_swap = 0  # The number of swapping needs to be applied
     for i_dn in dn_sites
@@ -36,7 +36,7 @@ function relativeSign(conf::Vector{Int64})
     return sign
 end
 
-function MPSOverlap(conf::Vector{Int64}, mps::MPS)
+function MPSOverlap(conf::Vector{Int}, mps::MPS)
     state = []
     for i in conf
         if i == 1
@@ -56,7 +56,7 @@ function MPSOverlap(conf::Vector{Int64}, mps::MPS)
     return o*sign
 end
 
-function MPSOverlap(conf::Vector{Int64}, pmps::ProdMPS)
+function MPSOverlap(conf::Vector{Int}, pmps::ProdMPS)
     o = getOverlap!(pmps, conf)
     sign = relativeSign(conf)
     return o*sign
@@ -65,7 +65,7 @@ end
 # <mps|conf><conf|phi>, where
 # |conf> is a product state, and
 # |phi> = |phi_up> |phi_dn> is a determinant
-function getProbWeight(conf::Vector{Int64}, mps, phi_up::Matrix{T}, phi_dn::Matrix{T}) where T
+function getProbWeight(conf::Vector{Int}, mps, phi_up::Matrix{T}, phi_dn::Matrix{T}) where T
     o1 = detProdOverlap(phi_up, phi_dn, conf)
     o2 = MPSOverlap(conf, mps)
     o = o1*o2
@@ -74,7 +74,7 @@ end
 
 # Sample the product state |i> with probability <mps|i><i|phi>
 # Can be further optimized
-function sampleBond(conf::Vector{Int64}, mps, phi_up::Matrix{T}, phi_dn::Matrix{T}, bond::Vector{Int}) where T
+function sampleBond(conf::Vector{Int}, mps, phi_up::Matrix{T}, phi_dn::Matrix{T}, bond::Vector{Int}) where T
     i1, i2 = bond
 
     # Store all the configurations
@@ -103,7 +103,7 @@ function sampleBond(conf::Vector{Int64}, mps, phi_up::Matrix{T}, phi_dn::Matrix{
     return confs[ind], ws[ind]
 end
 
-function sampleMPS!(conf::Vector{Int64}, psi, phi_up::Matrix{T}, phi_dn::Matrix{T}, latt, obs=DefaultDict(0.)) where T
+function sampleMPS!(conf::Vector{Int}, psi, phi_up::Matrix{T}, phi_dn::Matrix{T}, latt, obs=DefaultDict(0.)) where T
     O = 0.
     for bond in latt.bonds
         conf, O = sampleBond(conf, psi, phi_up, phi_dn, bond)

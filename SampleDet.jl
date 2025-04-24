@@ -2,6 +2,7 @@ include("HSTrans.jl")
 include("DetTools.jl")
 include("Measure.jl")
 include("Initial.jl")
+#include("DetChain.jl")
 using PyPlot
 using LinearAlgebra
 
@@ -79,6 +80,11 @@ toRight::Bool
     # Apply B_K
     phi_up = expHk_half * phi_up
     phi_dn = expHk_half * phi_dn
+
+    # Stabilize the determinant
+    phi_up = reOrthoDet(phi_up)
+    phi_dn = reOrthoDet(phi_dn)
+
     return phi_up, phi_dn, auxfld, O
 end
 
@@ -113,9 +119,63 @@ toRight::Bool
                 measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
             end
 
+
+            phis_up[i] = phi_up
+            phis_dn[i] = phi_dn
+        end
+    # Right to left
+    else
+        for i=N:-1:1
+            phi_up, phi_dn, auxflds[i], O = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
+                                                           expHk_half, expV_up, expV_dn; toRight=false)
+
+            # Measure at the center, between phis[i], phi
+            if (i-1 == div(N,2))
+                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, sign(O), obs, para)
+            end
+
+            phis_up[i] = phi_up
+            phis_dn[i] = phi_dn
+        end
+    end
+    return O
+end
+
+#=
+# Update x_1, ..., x_N with the probability
+# p = <MPS|i><i|B(x_N)...B(x_1)|j><j|MPS>
+# Here |i> and |j> are the first and the last state in phis,
+# so they will not be updated in this function
+function sampleAuxField_sweep2!(
+phis_up::DetChain{T},
+phis_dn::DetChain{T},
+para::Dict{String,Any},
+auxflds::Vector{Vector{Int}},
+expHk_half::Matrix{Float64},
+expV_up::Vector{Float64},
+expV_dn::Vector{Float64},
+obs::Dict{String,Any}
+) where T
+    N = length(auxflds)
+    @assert N >= 2
+    @assert para.center == 1
+    @assert para.slice == 0
+    checkDetChain(phis_up, para, expHk_half, auxflds, expV)
+    checkDetChain(phis_dn, para, expHk_half, auxflds, expV)
+
+    # Left to right
+    if toRight
+        for i=1:N
+            sampleNextAuxField!(phis_up, phis_dn, para, auxflds, expHk_half, expV_up, expV_dn)
+
+            # Measure at the center, between phi, phis[i+1]
+            if (i == div(N,2))
+                measure!(phis_up.phiL[i-1], phis_dn.phiL[i-1], phis_up.phiR[i], phis_dn.phiR[i], sign(O), obs, para)
+            end
+
             # Stabilize the determinant
-            #phi_up = reOrthoDet(phi_up)
-            #phi_dn = reOrthoDet(phi_dn)
+            phi_up = reOrthoDet(phi_up)
+            phi_dn = reOrthoDet(phi_dn)
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -132,8 +192,8 @@ toRight::Bool
             end
 
             # Stabilize the determinant
-            #phi_up = reOrthoDet(phi_up)
-            #phi_dn = reOrthoDet(phi_dn)
+            phi_up = reOrthoDet(phi_up)
+            phi_dn = reOrthoDet(phi_dn)
 
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
@@ -141,6 +201,7 @@ toRight::Bool
     end
     return O
 end
+=#
 
 # ================================== debug code ========================================
 function check_overlap(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, auxfld_new, expV_up, expV_dn)
