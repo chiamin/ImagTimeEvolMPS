@@ -8,8 +8,8 @@ include("dmrg.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
-#include("DetChain.jl")
 using ITensorMPS
+include("help.jl")
 
 seed = 1234567890123
 Random.seed!(seed)
@@ -60,8 +60,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     OMPS2 = MPSOverlap(conf_end, mps)
 
     # Initialize all the determinants
-    phis_up = initPhis(phi1_up, phi1_dn, expHk_half, auxflds, expV_up)
-    phis_dn = initPhis(phi2_up, phi2_dn, expHk_half, auxflds, expV_dn)
+    phis_up = initPhis(phi1_up, phi2_up, expHk_half, auxflds, expV_up)
+    phis_dn = initPhis(phi1_dn, phi2_dn, expHk_half, auxflds, expV_dn)
 
     # Initialize observables
     obs = Dict{String,Any}()
@@ -82,8 +82,34 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Write the observables' names
     println(file,"step Ek EV sign nup ndn")
 
+
+    # ** Check the determinant
+    phis_up[1] = reOrthoDet(phis_up[1])
+    phis_dn[1] = reOrthoDet(phis_dn[1])
+    confs, ampls = get_normalized_slater_amplitudes(phis_up[1], phis_dn[1])
+    EE = getEnergy(phi2_up, phi2_dn, Hk, U)
+    println("EE: ",EE)
+    EE = getEnergy(phis_up[1], phis_dn[1], Hk, U)
+    println("EE: ",EE)
+
+    # ** Check all the probability weights
+    confs = generate_product_configurations(Nsites, Nup, Ndn)
+    open("data/w.txt","w") do file
+        for conf in confs
+            o1 = detProdOverlap(phis_up[1], phis_dn[1], conf)
+            o2 = MPSOverlap(conf, mps)
+            w = o1*o2
+            if abs(w) < 1e-14
+                w = 0.
+            end
+            println(file,conf," ",w)
+        end
+    end
+
     # Monte Carlo sampling
+    hist = Dict(k => 0 for k in confs)
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
+    c = div(Ntau,2)
     for i=1:N_samples
         # 1. Sample the left product state
         #    OMPS1: <MPS|conf1>
@@ -92,24 +118,24 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
         tend("MPS")
 
+        hist[conf_beg] += 1
 
         # 2. Sample the auxiliary fields from left to right
         #    ODet: <conf1|BB...B|conf2>
-        tstart("Det")
+        #=tstart("Det")
         for i=1:Ntau
             # Sample the fields
-            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
-                                                              expHk_half, expV_up, expV_dn; toRight=true)
-
-            # Measure at the center, between phi, phis[i+1]
-            if (i == div(Ntau,2))
-                O = ODet * conj(OMPS1) * OMPS2
-                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
-            end
-
+            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
+                                                              auxflds[i], expHk_half, expV_up, expV_dn; toRight=true)
             # Update determinants
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
+
+            # Measure at the center slice
+            if (i == c)
+                O = ODet * conj(OMPS1) * OMPS2
+                measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+            end
         end
         ODet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=true)
         tend("Det")
@@ -128,21 +154,19 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         tstart("Det")
         for i=Ntau:-1:1
             # Sample the fields
-            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
-                                                           expHk_half, expV_up, expV_dn; toRight=false)
-
-            # Measure at the center, between phis[i], phi
-            if (i-1 == div(Ntau,2))
-                O = ODet * conj(OMPS1) * OMPS2
-                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, sign(O), obs, para)
-            end
-
+            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
+                                                              auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
             # Update determinants
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
-        end
-        tend("Det")
 
+            # Measure at the center slice
+            if (i == c+1)
+                O = ODet * conj(OMPS1) * OMPS2
+                measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+            end
+        end
+        tend("Det")=#
 
         # Write the observables
         if i%write_step == 0
@@ -159,6 +183,13 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
             cleanObs!(obs)
         end
     end
+
+    open("data/hist.txt","w") do file
+        for (key,val) in hist
+            println(file,key," ",val)
+        end
+    end
+
     close(file)
     println("Total time: ")
     display(timer)
@@ -183,11 +214,20 @@ function main()
     U = 12.
     dtau = 0.05
     nsteps = 10
-    N_samples = 300000
-    write_step = 100
+    N_samples = 1000
+    write_step = 10000
 
     # Initialize MPS
     en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
+
+    # Write psi to file
+    confs, ampls = getAmplitudes(psi)
+    open("data/psi0.txt","w") do file
+        for i=1:length(confs)
+            println(file,confs[i]," ",ampls[i])
+        end
+    end
+
     # Measure the initial MPS
     nups = expect(psi,"Nup")
     ndns = expect(psi,"Ndn")
@@ -210,7 +250,7 @@ function main()
         println(file,"ndn ",nups)
     end
 
-    for nsteps in [10,20,30,40,50,60,70,80]
+    for nsteps in [10]#,20,30,40,50,60,70,80]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, write_step)
     end
 end

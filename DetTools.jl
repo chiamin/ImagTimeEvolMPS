@@ -86,3 +86,10 @@ function prodDetUpDn(conf::Vector{Int64})
     phi_dn = prodDet(dn_conf)
     return phi_up, phi_dn
 end
+
+function overlap(conf::Vector{Int64}, phi_up::Matrix{T}, phi_dn::Matrix{T})::T where T
+    phi2_up, phi2_dn = prodDetUpDn(conf)
+    O1 = overlap(phi2_up, phi_up)
+    O2 = overlap(phi2_dn, phi_dn)
+    return O1*O2
+end
