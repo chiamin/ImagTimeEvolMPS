@@ -60,8 +60,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     OMPS2 = MPSOverlap(conf_end, mps)
 
     # Initialize all the determinants
-    phis_up = initPhis(phi1_up, phi1_dn, expHk_half, auxflds, expV_up)
-    phis_dn = initPhis(phi2_up, phi2_dn, expHk_half, auxflds, expV_dn)
+    phis_up = initPhis(phi1_up, phi2_up, expHk_half, auxflds, expV_up)
+    phis_dn = initPhis(phi1_dn, phi2_dn, expHk_half, auxflds, expV_dn)
 
     # Initialize observables
     obs = Dict{String,Any}()
