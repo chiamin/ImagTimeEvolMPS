@@ -30,7 +30,7 @@ end
 # The reweighting factor det(R) is discarded.
 # Note: det((Q'R')^\dagger QR) = det(Q'^\dagger Q) det(R')^* det(R)
 function reOrthoDet(phi::Matrix{T}) where T
-    t = time_ns()
+    tstart("reOrtho")
     # QR decomposition
     F = linalg.qr(phi)
     # Replace phi by Q
@@ -40,7 +40,7 @@ function reOrthoDet(phi::Matrix{T}) where T
     if sign(det(F.R)) < 0.
         Q[:, [1, 2]] = Q[:, [2, 1]]
     end
-    timer["reOrtho"] += (time_ns() - t) / 1e9
+    tend("reOrtho")
     return Q
 end
 

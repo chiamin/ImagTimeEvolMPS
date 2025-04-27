@@ -77,7 +77,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Reset the timer
     treset()
 
-    dir = "data/"
+    dir = "data3/"
     file = open(dir*"/ntau"*string(nsteps)*".dat","w")
     # Write the observables' names
     println(file,"step Ek EV sign nup ndn")
@@ -199,7 +199,7 @@ function main()
     Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
 
     # Write the information for the initial state
-    open("data/init.dat","w") do file
+    open("data3/init.dat","w") do file
         println(file,"E0 ",en0)
         println(file,"Ek0 ",Ek0)
         println(file,"EV0 ",EV0)
