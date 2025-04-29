@@ -65,15 +65,11 @@ function initPhis(phi_beg::Matrix{T}, phi_end::Matrix{T}, expHk_half::Matrix{Flo
     phi = copy(phi_end)
     for i=N:-1:1
         phis[i] = applyExpH(phis[i+1], auxflds[i], expHk_half, expV)
+        phis[i] = reOrthoDet(phis[i])   # reorthogonalize determinant
     end
 
     # First one
     phis[0] = phi_beg
-
-    # Reorthogonalize all the determinants
-    for (i,phi) in phis
-        phi = reOrthoDet(phi)
-    end
 
     @assert length(phis) == N+2
 

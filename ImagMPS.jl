@@ -8,8 +8,8 @@ include("dmrg.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
-#include("DetChain.jl")
 using ITensorMPS
+include("help.jl")
 
 seed = 1234567890123
 Random.seed!(seed)
@@ -77,20 +77,22 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Reset the timer
     treset()
 
-    dir = "data3/"
+    dir = "data4/"
     file = open(dir*"/ntau"*string(nsteps)*".dat","w")
     # Write the observables' names
     println(file,"step Ek EV sign nup ndn")
 
     # Monte Carlo sampling
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
-    for i=1:N_samples
+    c = div(Ntau,2)
+    for iMC=1:N_samples
         # 1. Sample the left product state
         #    OMPS1: <MPS|conf1>
         tstart("MPS")
         conf_beg, OMPS1 = sampleMPS!(conf_beg, mpsM, phis_up[1], phis_dn[1], latt)
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
         tend("MPS")
+        @assert abs(OMPS1-MPSOverlap(conf_beg, mps)) < 1e-14    # Check MPS overlap
 
 
         # 2. Sample the auxiliary fields from left to right
@@ -98,20 +100,18 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         tstart("Det")
         for i=1:Ntau
             # Sample the fields
-            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
-                                                              expHk_half, expV_up, expV_dn; toRight=true)
-
-            # Measure at the center, between phi, phis[i+1]
-            if (i == div(Ntau,2))
-                O = ODet * conj(OMPS1) * OMPS2
-                measure!(phi_up, phi_dn, phis_up[i+1], phis_dn[i+1], sign(O), obs, para)
-            end
-
+            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
+                                                              auxflds[i], expHk_half, expV_up, expV_dn; toRight=true)
             # Update determinants
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
+
+            # Measure at the center slice
+            if (i == c)
+                O = ODet * conj(OMPS1) * OMPS2
+                measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+            end
         end
-        ODet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=true)
         tend("Det")
 
 
@@ -121,6 +121,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phis_up[Ntau], phis_dn[Ntau], latt)
         phis_up[Ntau+1], phis_dn[Ntau+1] = prodDetUpDn(conf_end)
         tend("MPS")
+        @assert abs(OMPS2-MPSOverlap(conf_end, mps)) < 1e-14    # Check MPS overlap
 
 
         # 4. Sample the auxiliary fields from right to left
@@ -128,49 +129,41 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         tstart("Det")
         for i=Ntau:-1:1
             # Sample the fields
-            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1], auxflds[i],
-                                                           expHk_half, expV_up, expV_dn; toRight=false)
-
-            # Measure at the center, between phis[i], phi
-            if (i-1 == div(Ntau,2))
-                O = ODet * conj(OMPS1) * OMPS2
-                measure!(phis_up[i-1], phis_dn[i-1], phi_up, phi_dn, sign(O), obs, para)
-            end
-
+            phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
+                                                              auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
             # Update determinants
             phis_up[i] = phi_up
             phis_dn[i] = phi_dn
+
+            # Measure at the center slice
+            if (i == c+1)
+                O = ODet * conj(OMPS1) * OMPS2
+                measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+            end
         end
         tend("Det")
 
 
         # Write the observables
-        if i%write_step == 0
-            println(nsteps,": ",i,"/",N_samples)
+        if iMC%write_step == 0
+            println(nsteps,": ",iMC,"/",N_samples)
             Eki = getObs(obs, "Ek")
             EVi = getObs(obs, "EV")
             nupi = getObs(obs, "nup")
             ndni = getObs(obs, "ndn")
             si = getObs(obs, "sign")
 
-            println(file,i," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
+            println(file,iMC," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
             flush(file)
 
             cleanObs!(obs)
         end
     end
+
     close(file)
     println("Total time: ")
     display(timer)
 end
-
-function measureMPS(psi)
-    magz = expect(psi,"Sz")
-    for (j,mz) in enumerate(magz)
-        println("$j $mz")
-    end
-end
-
 
 function main()
     Lx=2
@@ -182,16 +175,20 @@ function main()
     Ndn = 2
     U = 12.
     dtau = 0.05
-    nsteps = 10
-    N_samples = 300000
+    #nsteps = 10
+    N_samples = 400000
     write_step = 100
 
     # Initialize MPS
-    en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
+    en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[4], cutoff=[1e-14])
+
     # Measure the initial MPS
     nups = expect(psi,"Nup")
     ndns = expect(psi,"Ndn")
     println("E0 = ",en0)
+
+    # Write initial MPS to file
+    writeMPS(psi,"data4/initMPS.txt")
 
     # Get exact energy from DMRG
     en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=30, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
@@ -199,7 +196,8 @@ function main()
     Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
 
     # Write the information for the initial state
-    open("data3/init.dat","w") do file
+
+    open("data4/init.dat","w") do file
         println(file,"E0 ",en0)
         println(file,"Ek0 ",Ek0)
         println(file,"EV0 ",EV0)

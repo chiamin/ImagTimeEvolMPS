@@ -48,9 +48,9 @@ function cleanObs!(obs::Dict{String,Any})
 end
 
 function measure!(
-    phi1_up::Matrix{T}, phi1_dn::Matrix{T},
-    phi2_up::Matrix{T}, phi2_dn::Matrix{T},
-    sign::Float64, obs::Dict{String,Any}, para::Dict{String,Any}
+phi1_up::Matrix{T}, phi1_dn::Matrix{T},
+phi2_up::Matrix{T}, phi2_dn::Matrix{T},
+sign::Float64, obs::Dict{String,Any}, para::Dict{String,Any}
 ) where T
     Hk = para["Hk"]
     U = para["U"]
