@@ -77,46 +77,12 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Reset the timer
     treset()
 
-    dir = "data/"
+    dir = "data4/"
     file = open(dir*"/ntau"*string(nsteps)*".dat","w")
     # Write the observables' names
     println(file,"step Ek EV sign nup ndn")
 
-
-    # ** Check the determinant
-    phis_up[1] = reOrthoDet(phis_up[1])
-    phis_dn[1] = reOrthoDet(phis_dn[1])
-    confs, ampls = get_normalized_slater_amplitudes(phis_up[1], phis_dn[1])
-    EE = getEnergy(phi2_up, phi2_dn, Hk, U)
-    println("EE: ",EE)
-    EE = getEnergy(phis_up[1], phis_dn[1], Hk, U)
-    println("EE: ",EE)
-
-    # ** Check all the probability weights
-    confs = generate_product_configurations(Nsites, Nup, Ndn)
-    ws = Vector{Float64}()
-    for conf in confs
-        o1 = detProdOverlap(phis_up[1], phis_dn[1], conf)
-        o2 = MPSOverlap(conf, mps)
-        w = o1*o2
-        if abs(w) < 1e-14
-            w = 0.
-        end
-        push!(ws, w)
-    end
-    ws = ws ./ sum(ws)
-    open("data/w.txt","w") do file
-        for i=1:length(ws)
-            println(file,confs[i]," ",ws[i])
-        end
-    end
-
     # Monte Carlo sampling
-    x_all = generate_all_fields(Nsites)
-    hist_conf1 = Dict(k => 0 for k in confs)
-    hist_conf2 = Dict(k => 0 for k in confs)
-    hist_x1 = Dict(x => 0 for x in x_all)
-    hist_x2 = Dict(x => 0 for x in x_all)
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
     c = div(Ntau,2)
     for iMC=1:N_samples
@@ -127,8 +93,6 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
         tend("MPS")
         @assert abs(OMPS1-MPSOverlap(conf_beg, mps)) < 1e-14    # Check MPS overlap
-
-        #hist[conf_beg] += 1
 
 
         # 2. Sample the auxiliary fields from left to right
@@ -146,19 +110,6 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
             if (i == c)
                 O = ODet * conj(OMPS1) * OMPS2
                 measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
-
-
-                if iMC == -1
-                    G_up = Greens_function(phis_up[c], phis_up[c+1])
-                    G_dn = Greens_function(phis_dn[c], phis_dn[c+1])
-                    Ek = kinetic_energy(G_up, G_dn, Hk)
-                    EV = potential_energy(G_up, G_dn, U)
-                    odet = overlap(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1])
-                    println(conf_beg," ",conf_end," ",auxflds[1]," ",auxflds[2],": ",Ek+EV," ",Ek," ",EV,", ",ODet," ",OMPS1," ",OMPS2)
-                    println(overlap(phis_up[c], phis_dn[c], phis_up[c], phis_dn[c]))
-                    println(overlap(phis_up[c+1], phis_dn[c+1], phis_up[c+1], phis_dn[c+1]))
-                    error("stop")
-                end
             end
         end
         tend("Det")
@@ -176,7 +127,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         # 4. Sample the auxiliary fields from right to left
         #    ODet: <conf1|BB...B|conf2>
         tstart("Det")
-        for i=Ntau:Ntau#-1:1
+        for i=Ntau:-1:1
             # Sample the fields
             phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
                                                               auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
@@ -209,24 +160,10 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         end
     end
 
-    #=open("data/hist.txt","w") do file
-        for (key,val) in hist
-            println(file,key," ",val)
-        end
-    end=#
-
     close(file)
     println("Total time: ")
     display(timer)
 end
-
-function measureMPS(psi)
-    magz = expect(psi,"Sz")
-    for (j,mz) in enumerate(magz)
-        println("$j $mz")
-    end
-end
-
 
 function main()
     Lx=2
@@ -239,24 +176,19 @@ function main()
     U = 12.
     dtau = 0.05
     #nsteps = 10
-    N_samples = 10000
+    N_samples = 400000
     write_step = 100
 
     # Initialize MPS
-    en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
-
-    # Write psi to file
-    confs, ampls = getAmplitudes(psi)
-    open("data/psi0.txt","w") do file
-        for i=1:length(confs)
-            println(file,confs[i]," ",ampls[i])
-        end
-    end
+    en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[4], cutoff=[1e-14])
 
     # Measure the initial MPS
     nups = expect(psi,"Nup")
     ndns = expect(psi,"Ndn")
     println("E0 = ",en0)
+
+    # Write initial MPS to file
+    writeMPS(psi,"data4/initMPS.txt")
 
     # Get exact energy from DMRG
     en_DMRG, psi_DMRG = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=30, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80,160], cutoff=[1e-14])
@@ -264,7 +196,7 @@ function main()
     Ek_DMRG, EV_DMRG = getEkEV(psi_DMRG, Lx, Ly, tx, ty, U, xpbc, ypbc)
 
     # Write the information for the initial state
-    open("data/init.dat","w") do file
+    open("data4/init.dat","w") do file
         println(file,"E0 ",en0)
         println(file,"Ek0 ",Ek0)
         println(file,"EV0 ",EV0)
@@ -275,7 +207,7 @@ function main()
         println(file,"ndn ",nups)
     end
 
-    for nsteps in [1]#[10,20,30,40,50,60,70,80]
+    for nsteps in [10,20,30,40,50,60,70,80]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, write_step)
     end
 end

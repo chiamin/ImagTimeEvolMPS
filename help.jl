@@ -150,3 +150,13 @@ function getEnergy(phi_up, phi_dn, Hk, U)
     EV = potential_energy(G_up, G_dn, U)
     return Ek+EV
 end
+
+# Write psi to file
+function writeMPS(psi, filename)
+    confs, ampls = getAmplitudes(psi)
+    open(filename,"w") do file
+    for i=1:length(confs)
+        println(file,confs[i]," ",ampls[i])
+    end
+end
+    end
