@@ -5,6 +5,17 @@ function overlap(phi1::Matrix{T}, phi2::Matrix{T})::T where T
     return linalg.det(phi1' * phi2)
 end
 
+function overlap(phi1_up::Matrix{T}, phi1_dn::Matrix{T}, phi2_up::Matrix{T}, phi2_dn::Matrix{T})::T where T
+    return overlap(phi1_up, phi2_up) * overlap(phi1_dn, phi2_dn)
+end
+
+function overlap(conf::Vector{Int64}, phi_up::Matrix{T}, phi_dn::Matrix{T})::T where T
+    phi2_up, phi2_dn = prodDetUpDn(conf)
+    O1 = overlap(phi2_up, phi_up)
+    O2 = overlap(phi2_dn, phi_dn)
+    return O1*O2
+end
+
 function detNorm(phi::Matrix{T})::Float64 where T
     O = overlap(phi,phi)
     return sqrt(O)
@@ -30,7 +41,7 @@ end
 # The reweighting factor det(R) is discarded.
 # Note: det((Q'R')^\dagger QR) = det(Q'^\dagger Q) det(R')^* det(R)
 function reOrthoDet(phi::Matrix{T}) where T
-    t = time_ns()
+    tstart("reOrtho")
     # QR decomposition
     F = linalg.qr(phi)
     # Replace phi by Q
@@ -40,7 +51,7 @@ function reOrthoDet(phi::Matrix{T}) where T
     if sign(det(F.R)) < 0.
         Q[:, [1, 2]] = Q[:, [2, 1]]
     end
-    timer["reOrtho"] += (time_ns() - t) / 1e9
+    tend("reOrtho")
     return Q
 end
 
@@ -85,11 +96,4 @@ function prodDetUpDn(conf::Vector{Int64})
     phi_up = prodDet(up_conf)
     phi_dn = prodDet(dn_conf)
     return phi_up, phi_dn
-end
-
-function overlap(conf::Vector{Int64}, phi_up::Matrix{T}, phi_dn::Matrix{T})::T where T
-    phi2_up, phi2_dn = prodDetUpDn(conf)
-    O1 = overlap(phi2_up, phi_up)
-    O2 = overlap(phi2_dn, phi_dn)
-    return O1*O2
 end

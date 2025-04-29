@@ -82,8 +82,8 @@ toRight::Bool
     phi_dn = expHk_half * phi_dn
 
     # Stabilize the determinant
-    phi_up = reOrthoDet(phi_up)
-    phi_dn = reOrthoDet(phi_dn)
+    #phi_up = reOrthoDet(phi_up)
+    #phi_dn = reOrthoDet(phi_dn)
 
     return phi_up, phi_dn, auxfld, O
 end

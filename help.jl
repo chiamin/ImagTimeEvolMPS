@@ -50,6 +50,10 @@ function generate_product_configurations(N_sites::Int, N_up::Int, N_dn::Int)
     return valid_configs
 end
 
+function generate_all_fields(n)
+    tuples = Iterators.product(fill((1, 2), n)...)
+    return [collect(t) for t in tuples]  # convert each tuple to a vector
+end
 
 function print_state_amplitudes(psi::Vector{Float64}, basis::Vector{Tuple{Int, Int}}, N_sites::Int)
     for (idx, (up_mask, dn_mask)) in enumerate(basis)

@@ -68,8 +68,7 @@ end
 function getProbWeight(conf::Vector{Int}, mps, phi_up::Matrix{T}, phi_dn::Matrix{T}) where T
     o1 = detProdOverlap(phi_up, phi_dn, conf)
     o2 = MPSOverlap(conf, mps)
-    o = o1*o2
-    return o
+    return o1, o2
 end
 
 # Sample the product state |i> with probability <mps|i><i|phi>
@@ -91,28 +90,25 @@ function sampleBond(conf::Vector{Int}, mps, phi_up::Matrix{T}, phi_dn::Matrix{T}
 
     # Compute the probability weights for all the configurations
     ws = Vector{Float64}()
+    OMPSs = Vector{Float64}()
     for conf_i in confs
-        wi = getProbWeight(conf_i, mps, phi_up, phi_dn)
+        odet, omps = getProbWeight(conf_i, mps, phi_up, phi_dn)
+        wi = odet * omps
         push!(ws, wi)
+        push!(OMPSs, omps)
     end
 
     # Random sampling
     ps = abs.(ws)
     ind = StatsBase.sample(Weights(ps))
 
-    return confs[ind], ws[ind]
+    return confs[ind], OMPSs[ind]
 end
 
-function sampleMPS!(conf::Vector{Int}, psi, phi_up::Matrix{T}, phi_dn::Matrix{T}, latt, obs=DefaultDict(0.)) where T
+function sampleMPS!(conf::Vector{Int}, psi, phi_up::Matrix{T}, phi_dn::Matrix{T}, latt) where T
     O = 0.
     for bond in latt.bonds
         conf, O = sampleBond(conf, psi, phi_up, phi_dn, bond)
-
-        # Measure
-        if length(obs) != 0
-            prod_up, prod_dn = prodDetUpDn(conf)
-            measure!(prod_up, prod_dn, phi_up, phi_dn, w, obs)
-        end
     end
     return conf, O
 end

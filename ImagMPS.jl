@@ -94,35 +94,46 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
     # ** Check all the probability weights
     confs = generate_product_configurations(Nsites, Nup, Ndn)
+    ws = Vector{Float64}()
+    for conf in confs
+        o1 = detProdOverlap(phis_up[1], phis_dn[1], conf)
+        o2 = MPSOverlap(conf, mps)
+        w = o1*o2
+        if abs(w) < 1e-14
+            w = 0.
+        end
+        push!(ws, w)
+    end
+    ws = ws ./ sum(ws)
     open("data/w.txt","w") do file
-        for conf in confs
-            o1 = detProdOverlap(phis_up[1], phis_dn[1], conf)
-            o2 = MPSOverlap(conf, mps)
-            w = o1*o2
-            if abs(w) < 1e-14
-                w = 0.
-            end
-            println(file,conf," ",w)
+        for i=1:length(ws)
+            println(file,confs[i]," ",ws[i])
         end
     end
 
     # Monte Carlo sampling
-    hist = Dict(k => 0 for k in confs)
+    x_all = generate_all_fields(Nsites)
+    hist_conf1 = Dict(k => 0 for k in confs)
+    hist_conf2 = Dict(k => 0 for k in confs)
+    hist_x1 = Dict(x => 0 for x in x_all)
+    hist_x2 = Dict(x => 0 for x in x_all)
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
     c = div(Ntau,2)
-    for i=1:N_samples
+    for iMC=1:N_samples
         # 1. Sample the left product state
         #    OMPS1: <MPS|conf1>
         tstart("MPS")
         conf_beg, OMPS1 = sampleMPS!(conf_beg, mpsM, phis_up[1], phis_dn[1], latt)
         phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
         tend("MPS")
+        @assert abs(OMPS1-MPSOverlap(conf_beg, mps)) < 1e-14    # Check MPS overlap
 
-        hist[conf_beg] += 1
+        #hist[conf_beg] += 1
+
 
         # 2. Sample the auxiliary fields from left to right
         #    ODet: <conf1|BB...B|conf2>
-        #=tstart("Det")
+        tstart("Det")
         for i=1:Ntau
             # Sample the fields
             phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
@@ -135,9 +146,21 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
             if (i == c)
                 O = ODet * conj(OMPS1) * OMPS2
                 measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+
+
+                if iMC == -1
+                    G_up = Greens_function(phis_up[c], phis_up[c+1])
+                    G_dn = Greens_function(phis_dn[c], phis_dn[c+1])
+                    Ek = kinetic_energy(G_up, G_dn, Hk)
+                    EV = potential_energy(G_up, G_dn, U)
+                    odet = overlap(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1])
+                    println(conf_beg," ",conf_end," ",auxflds[1]," ",auxflds[2],": ",Ek+EV," ",Ek," ",EV,", ",ODet," ",OMPS1," ",OMPS2)
+                    println(overlap(phis_up[c], phis_dn[c], phis_up[c], phis_dn[c]))
+                    println(overlap(phis_up[c+1], phis_dn[c+1], phis_up[c+1], phis_dn[c+1]))
+                    error("stop")
+                end
             end
         end
-        ODet = sampleAuxField_sweep!(phis_up, phis_dn, auxflds, expHk_half, expV_up, expV_dn, obs, para; toRight=true)
         tend("Det")
 
 
@@ -147,12 +170,13 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phis_up[Ntau], phis_dn[Ntau], latt)
         phis_up[Ntau+1], phis_dn[Ntau+1] = prodDetUpDn(conf_end)
         tend("MPS")
+        @assert abs(OMPS2-MPSOverlap(conf_end, mps)) < 1e-14    # Check MPS overlap
 
 
         # 4. Sample the auxiliary fields from right to left
         #    ODet: <conf1|BB...B|conf2>
         tstart("Det")
-        for i=Ntau:-1:1
+        for i=Ntau:Ntau#-1:1
             # Sample the fields
             phi_up, phi_dn, auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
                                                               auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
@@ -166,29 +190,30 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
                 measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
             end
         end
-        tend("Det")=#
+        tend("Det")
+
 
         # Write the observables
-        if i%write_step == 0
-            println(nsteps,": ",i,"/",N_samples)
+        if iMC%write_step == 0
+            println(nsteps,": ",iMC,"/",N_samples)
             Eki = getObs(obs, "Ek")
             EVi = getObs(obs, "EV")
             nupi = getObs(obs, "nup")
             ndni = getObs(obs, "ndn")
             si = getObs(obs, "sign")
 
-            println(file,i," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
+            println(file,iMC," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
             flush(file)
 
             cleanObs!(obs)
         end
     end
 
-    open("data/hist.txt","w") do file
+    #=open("data/hist.txt","w") do file
         for (key,val) in hist
             println(file,key," ",val)
         end
-    end
+    end=#
 
     close(file)
     println("Total time: ")
@@ -213,9 +238,9 @@ function main()
     Ndn = 2
     U = 12.
     dtau = 0.05
-    nsteps = 10
-    N_samples = 1000
-    write_step = 10000
+    #nsteps = 10
+    N_samples = 10000
+    write_step = 100
 
     # Initialize MPS
     en0, psi = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[10], cutoff=[1e-14])
@@ -250,7 +275,7 @@ function main()
         println(file,"ndn ",nups)
     end
 
-    for nsteps in [10]#,20,30,40,50,60,70,80]
+    for nsteps in [1]#[10,20,30,40,50,60,70,80]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi, write_step)
     end
 end
