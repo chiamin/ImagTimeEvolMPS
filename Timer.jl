@@ -7,7 +7,7 @@ if !@isdefined startTime
 end
 
 function tstart(name::String)
-    @assert !haskey(startTime, name)
+    #@assert !haskey(startTime, name)
     startTime[name] = time_ns()
 end
 

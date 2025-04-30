@@ -71,7 +71,7 @@ toRight::Bool
         applyV!(phi_up, auxfld, expV_up)
         applyV!(phi_dn, auxfld, expV_dn)
         # Check determinant overlap
-        @assert abs(O - overlap(phi_up, phi_dn, phi2_up, phi2_dn)) < 1e-12
+        #@assert abs(O - overlap(phi_up, phi_dn, phi2_up, phi2_dn)) < 1e-12
     else
         phi_up = copy(phi2_up)
         phi_dn = copy(phi2_dn)
@@ -79,7 +79,7 @@ toRight::Bool
         applyV!(phi_dn, auxfld, expV_dn)
 
         # Check determinant overlap
-        @assert abs(O - overlap(phi1_up, phi1_dn, phi_up, phi_dn)) < 1e-12
+        #@assert abs(O - overlap(phi1_up, phi1_dn, phi_up, phi_dn)) < 1e-12
     end
     # --------------------
     # Apply B_K

@@ -60,10 +60,12 @@ sign::Float64, obs::Dict{String,Any}, para::Dict{String,Any}
 
     Ek = kinetic_energy(G_up, G_dn, Hk)
     EV = potential_energy(G_up, G_dn, U)
+    E = Ek+EV
     nup, ndn = get_density(G_up, G_dn)
 
     measure!(obs, "Ek", Ek*sign)
     measure!(obs, "EV", EV*sign)
+    measure!(obs, "E", E*sign)
     measure!(obs, "nup", nup*sign)
     measure!(obs, "ndn", ndn*sign)
     measure!(obs, "sign", sign)
