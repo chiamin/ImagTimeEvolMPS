@@ -3,7 +3,6 @@ include("DetTools.jl")
 include("Measure.jl")
 include("Initial.jl")
 #include("DetChain.jl")
-using PyPlot
 using LinearAlgebra
 
 # <phi|B_V|phi>

@@ -9,7 +9,7 @@ include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
 using ITensorMPS
-include("help.jl")
+#include("help.jl")
 
 seed = 1234567890123
 Random.seed!(seed)
