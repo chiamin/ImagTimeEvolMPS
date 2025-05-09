@@ -191,29 +191,29 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 end
 
 function main()
-    Lx=4
+    Lx=8
     Ly=4
     tx=ty=1.0
     xpbc=false
     ypbc=false
-    Nup = 7
-    Ndn = 7
-    U = 12.
+    Nup = 14
+    Ndn = 14
+    U = 8.
     dtau = 0.05
     #nsteps = 10
     N_samples = 400000
     write_step = 100
 
     # Initialize MPS
-    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[4], cutoff=[1e-14])
+    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[4,4,8,8,16,16,32,32,64,64], cutoff=[1e-14])
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
     #writeMPS(psi_init,"data5/initMPS.txt")
 
     # Get exact energy from DMRG
-    dims = [20,20,20,20,40,40,40,40,80,80,80,80,160,160,160,160,320,320,320,320,640]
-    E_GS, psi_GS = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=30, maxdim=dims, cutoff=[1e-14])
+    dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
+    E_GS, psi_GS = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn, psi_init; nsweeps=16, maxdim=dims, cutoff=[1e-14])
 
     dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)/"
     # Measure the initial state and the ground state
