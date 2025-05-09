@@ -80,7 +80,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     #dir = "data4x4_N14/"
     file = open(dir*"/ntau"*string(nsteps)*".dat","w")
     # Write the observables' names
-    println(file,"step Ek EV sign nup ndn")
+    println(file,"step Ek EV E sign nup ndn")
 
     # Monte Carlo sampling
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
@@ -161,11 +161,12 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
             println(nsteps,": ",iMC,"/",N_samples)
             Eki = getObs(obs, "Ek")
             EVi = getObs(obs, "EV")
+            Ei = getObs(obs, "E")
             nupi = getObs(obs, "nup")
             ndni = getObs(obs, "ndn")
             si = getObs(obs, "sign")
 
-            println(file,iMC," ",Eki," ",EVi," ",si," ",nupi," ",ndni)
+            println(file,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
             flush(file)
 
             cleanObs!(obs)
@@ -205,7 +206,7 @@ function main()
     write_step = 100
 
     # Initialize MPS
-    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=10, maxdim=[4], cutoff=[1e-14])
+    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
@@ -215,14 +216,14 @@ function main()
     dims = [20,20,20,20,40,40,40,40,80,80,80,80,160,160,160,160,320,320,320,320,640]
     E_GS, psi_GS = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=30, maxdim=dims, cutoff=[1e-14])
 
-    dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)/"
+    dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)_2/"
     # Measure the initial state and the ground state
     nups_init = expect(psi_init,"Nup")
     ndns_init = expect(psi_init,"Ndn")
     nups_GS = expect(psi_GS,"Nup")
     ndns_GS = expect(psi_GS,"Ndn")
     Ek_init, EV_init = getEkEV(psi_init, Lx, Ly, tx, ty, U, xpbc, ypbc)
-    Ek_GS,   EV_GS   = getEkEV(psi_GS, Lx, Ly, tx, ty, U, xpbc, ypbc)
+    Ek_GS, EV_GS = getEkEV(psi_GS, Lx, Ly, tx, ty, U, xpbc, ypbc)
     # Write the information for the initial state and the ground state
     open(dir*"/init.dat","w") do file
         println(file,"E0 ",en_init)
@@ -237,7 +238,7 @@ function main()
         println(file,"ndn_GS ",ndns_GS)
     end
 
-    for nsteps in [10,20,30,40,50,60,70,80]
+    for nsteps in [10,20,30,40,50]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
     end
 end
