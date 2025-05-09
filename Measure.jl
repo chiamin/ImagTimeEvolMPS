@@ -1,4 +1,4 @@
-using DataStructures
+#using DataStructures
 
 # Compute C_ij = <phi1| c_i^dagger c_j |phi2> / <phi1|phi2>
 function Greens_function(phi1::Matrix{T}, phi2::Matrix{T})::Matrix{T} where T
