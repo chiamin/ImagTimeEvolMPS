@@ -1,3 +1,2 @@
 *.dat
-data/
-data*/
+**/__pycache__/
