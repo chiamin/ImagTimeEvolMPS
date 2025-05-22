@@ -192,15 +192,15 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 end
 
 function main()
-    Lx=8
+    Lx=4
     Ly=4
     tx=ty=1.0
     xpbc=false
     ypbc=false
-    Nup = 14
-    Ndn = 14
+    Nup = 7
+    Ndn = 7
     U = 8.
-    dtau = 0.05
+    dtau = 0.01
     #nsteps = 10
     N_samples = 400000
     write_step = 100
@@ -216,7 +216,7 @@ function main()
     dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
     E_GS, psi_GS = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn, psi_init; nsweeps=16, maxdim=dims, cutoff=[1e-14])
 
-    dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)_2/"
+    dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)_dtau0.01/"
     # Measure the initial state and the ground state
     nups_init = expect(psi_init,"Nup")
     ndns_init = expect(psi_init,"Ndn")
@@ -226,6 +226,18 @@ function main()
     Ek_GS, EV_GS = getEkEV(psi_GS, Lx, Ly, tx, ty, U, xpbc, ypbc)
     # Write the information for the initial state and the ground state
     open(dir*"/init.dat","w") do file
+        println(file,"Lx ",Lx)
+        println(file,"Ly ",Ly)
+        println(file,"tx ",tx)
+        println(file,"ty ",ty)
+        println(file,"xpbc ",xpbc)
+        println(file,"ypbc ",ypbc)
+        println(file,"Nup ",Nup)
+        println(file,"Ndn ",Ndn)
+        println(file,"U ",U)
+        println(file,"dtau ",dtau)
+        println(file,"N_samples ",N_samples)
+        println(file,"write_step ",write_step)
         println(file,"E0 ",en_init)
         println(file,"Ek0 ",Ek_init)
         println(file,"EV0 ",EV_init)
@@ -238,7 +250,7 @@ function main()
         println(file,"ndn_GS ",ndns_GS)
     end
 
-    for nsteps in [10,20,30,40,50]
+    for nsteps in [20,40,60,80]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
     end
 end
