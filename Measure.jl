@@ -6,7 +6,8 @@ function Greens_function(phi1::Matrix{T}, phi2::Matrix{T})::Matrix{T} where T
     overlap_mat = phi1' * phi2
     inv_overlap = inv(overlap_mat)
     gf = phi2 * inv_overlap * phi1'
-    return transpose(gf)
+    gf = transpose(gf)
+    return gf
 end
 
 # Compute <phi1| H_k |phi2> / <phi1|phi2>

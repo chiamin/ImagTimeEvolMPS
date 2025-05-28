@@ -45,28 +45,34 @@ if __name__ == "__main__":
     Ntaus = [0, 10, 20, 30, 40]#, 50]#, 60, 70, 80]
     taus = np.array(Ntaus) * 0.05  # taus in the original code
 
-    Ekst, errEkst, EVst, errEVst, signst, err_signst = [data0["Ek0"]],[0.],[data0["EV0"]],[0.],[1.],[0.]
+    N = 4*4
+    Ek0, EV0 = data0["Ek0"], data0["EV0"]
+    Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst = [Ek0],[0.],[EV0],[0.],[Ek0+EV0],[0.],[1.],[0.]
     for fil in fnames:
         data = ana.read_monte_carlo_file(fil, skip_steps=skip_steps)
+        data["E"] = data["Ek"] + data["EV"]
         obs = ana.compute_mean_and_error_with_sign(data)
         Ekst.append(obs["Ek"][0])
         errEkst.append(obs["Ek"][1])
         EVst.append(obs["EV"][0])
         errEVst.append(obs["EV"][1])
+        Est.append(obs["E"][0])
+        errEst.append(obs["E"][1])
         signst.append(obs["sign"][0])
         err_signst.append(obs["sign"][1])
-    Ekst, errEkst, EVst, errEVst, signst, err_signst = map(np.array, [Ekst, errEkst, EVst, errEVst, signst, err_signst])
+    Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst = map(np.array, [Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst])
 
     # Divide by N
-    N = 4*4
     Ekst = Ekst / N
     errEkst = errEkst / N
     EVst = EVst / N
     errEVst = errEVst / N
+    Est = Est / N
+    errEst = errEst / N
 
     # Total energy and its error as the sum of kinetic and potential parts
-    Est = Ekst + EVst
-    errEst = errEkst + errEVst
+    #Est = Ekst + EVst
+    #errEst = errEkst + errEVst
 
     # Write to file
     data = np.column_stack((taus, Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst))

@@ -49,6 +49,7 @@ toRight::Bool
     phi1_dn = expHk_half * phi1_dn
     phi2_up = expHk_half * phi2_up
     phi2_dn = expHk_half * phi2_dn
+
     # ----  Apply B_V ----
     auxfld = copy(auxfld)
     O = overlap2(phi1_up, phi1_dn, phi2_up, phi2_dn, auxfld, expV_up, expV_dn)              # initial overlap
@@ -81,6 +82,7 @@ toRight::Bool
         #@assert abs(O - overlap(phi1_up, phi1_dn, phi_up, phi_dn)) < 1e-12
     end
     # --------------------
+
     # Apply B_K
     phi_up = expHk_half * phi_up
     phi_dn = expHk_half * phi_dn

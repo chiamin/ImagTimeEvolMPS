@@ -16,6 +16,12 @@ function overlap(conf::Vector{Int64}, phi_up::Matrix{T}, phi_dn::Matrix{T})::T w
     return O1*O2
 end
 
+function overlap(conf::Vector{Int64}, phi::Matrix{T})::T where T
+    phi_conf = prodDet(conf)
+    O = overlap(phi_conf, phi)
+    return O
+end
+
 function detNorm(phi::Matrix{T})::Float64 where T
     O = overlap(phi,phi)
     return sqrt(O)

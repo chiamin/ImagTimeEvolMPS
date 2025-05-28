@@ -26,7 +26,7 @@ function applyExpH(
 phi::Matrix{T}, 
 auxfld::Vector{Int}, 
 expHk_half::Matrix{Float64}, 
-expV::Vector{Float64}, 
+expV::Vector{Float64}
 ) where T
     Bphi = expHk_half * phi
     applyV!(Bphi, auxfld, expV)
@@ -34,3 +34,34 @@ expV::Vector{Float64},
     return Bphi
 end
 
+function applyExpHExact(
+    phi::Matrix{T},
+    auxfld::Vector{Int},
+    expHk_half::Matrix{Float64},
+    dtau::Float64,
+    U::Float64
+) where T
+    Nsites, Npar = size(phi)
+    @assert length(auxfld) == Nsites
+    @assert all(x -> x == 1 || x == 2, auxfld)
+
+    λ = acosh(exp(0.5 * dtau * U))
+
+    # Construct diagonal exp(V_HS(x)) with normalization and shift
+    diagV = [exp((x == 1 ? λ : -λ) - 0.5 * dtau * U) for x in auxfld]
+
+    # Apply diagonal potential to each row
+    Vphi = copy(phi)
+    for i in 1:Nsites
+        Vphi[i, :] *= diagV[i]
+    end
+
+    # Sandwich with kinetic half-step propagators
+    Bphi = expHk_half * Vphi
+    Bphi = expHk_half * Bphi
+
+    # Include exact normalization
+    Bphi .*= 1.0 / (2.0 ^ Nsites)
+
+    return Bphi
+end

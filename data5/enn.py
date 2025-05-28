@@ -41,37 +41,55 @@ if __name__ == "__main__":
     data0 = readE0("init.dat")
     skip_steps = 100
 
-    fnames = ["ntau10.dat","ntau20.dat","ntau30.dat","ntau40.dat","ntau50.dat"]#,"ntau60.dat","ntau70.dat","ntau80.dat"]
-    Ntaus = [0, 10, 20, 30, 40, 50]#, 60, 70, 80]
+    fnames = ["ntau10.dat","ntau20.dat","ntau30.dat","ntau40.dat"]#,"ntau50.dat"]#,"ntau60.dat","ntau70.dat","ntau80.dat"]
+    Ntaus = [0, 10, 20, 30, 40]#, 50]#, 60, 70, 80]
     taus = np.array(Ntaus) * 0.05  # taus in the original code
 
-    Ekst, errEkst, EVst, errEVst, signst, err_signst = [data0["Ek0"]],[0.],[data0["EV0"]],[0.],[1.],[0.]
+    N = 4*4
+    Ek0, EV0 = data0["Ek0"], data0["EV0"]
+    Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst = [Ek0],[0.],[EV0],[0.],[Ek0+EV0],[0.],[1.],[0.]
     for fil in fnames:
         data = ana.read_monte_carlo_file(fil, skip_steps=skip_steps)
+        data["E"] = data["Ek"] + data["EV"]
         obs = ana.compute_mean_and_error_with_sign(data)
         Ekst.append(obs["Ek"][0])
         errEkst.append(obs["Ek"][1])
         EVst.append(obs["EV"][0])
         errEVst.append(obs["EV"][1])
+        Est.append(obs["E"][0])
+        errEst.append(obs["E"][1])
         signst.append(obs["sign"][0])
         err_signst.append(obs["sign"][1])
-    Ekst, errEkst, EVst, errEVst, signst, err_signst = map(np.array, [Ekst, errEkst, EVst, errEVst, signst, err_signst])
+    Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst = map(np.array, [Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst])
 
     # Divide by N
-    N = 2*2
     Ekst = Ekst / N
     errEkst = errEkst / N
     EVst = EVst / N
     errEVst = errEVst / N
+    Est = Est / N
+    errEst = errEst / N
 
     # Total energy and its error as the sum of kinetic and potential parts
-    Est = Ekst + EVst
-    errEst = errEkst + errEVst
-    
+    #Est = Ekst + EVst
+    #errEst = errEkst + errEVst
+
+    # Write to file
+    data = np.column_stack((taus, Ekst, errEkst, EVst, errEVst, Est, errEst, signst, err_signst))
+    np.savetxt("en.txt", data, header="tau Ek errEk EV errEV E errE Sign errSign")
+        
+    # GS
+    Ek_GS = data0["Ek_GS"]/N
+    EV_GS = data0["EV_GS"]/N
+    E_GS = Ek_GS+EV_GS
+    data = np.column_stack((Ek_GS, EV_GS, E_GS))
+    np.savetxt("enGS.txt", data, header="Ek EV E")
+
+
     # Plot E_k
     f1 = plt.figure()
     plt.errorbar(taus, Ekst, yerr=errEkst, marker="o", linestyle="-")
-    plt.axhline(y=data0["Ek_GS"]/N, linestyle="--", color="k")
+    plt.axhline(y=Ek_GS, linestyle="--", color="k")
     plt.xlabel(r"$\tau$", fontsize=18)
     plt.ylabel(r"$E_k/N$", fontsize=18)
     plt.tight_layout()
@@ -79,7 +97,7 @@ if __name__ == "__main__":
     # Plot E_V
     f2 = plt.figure()
     plt.errorbar(taus, EVst, yerr=errEVst, marker="o", linestyle="-")
-    plt.axhline(y=data0["EV_GS"]/N, linestyle="--", color="k")
+    plt.axhline(y=EV_GS, linestyle="--", color="k")
     plt.xlabel(r"$\tau$", fontsize=18)
     plt.ylabel(r"$E_V/N$", fontsize=18)
     plt.tight_layout()
@@ -87,7 +105,7 @@ if __name__ == "__main__":
     # Plot E (total energy)
     f3 = plt.figure()
     plt.errorbar(taus, Est, yerr=errEst, marker="o", linestyle="-")
-    plt.axhline(y=(data0["Ek_GS"] + data0["EV_GS"])/N, linestyle="--", color="k")
+    plt.axhline(y=E_GS, linestyle="--", color="k")
     plt.xlabel(r"$\tau$", fontsize=18)
     plt.ylabel(r"$E/N$", fontsize=18)
     plt.tight_layout()
@@ -97,26 +115,21 @@ if __name__ == "__main__":
     # In Julia, taus[2:end] corresponds to Python's taus[1:]
     plt.errorbar(taus, signst, yerr=err_signst, marker="o", linestyle="-")
     plt.xlabel(r"$\tau$", fontsize=18)
-    plt.ylabel("sign", fontsize=18)
+    plt.ylabel("sign", fontsize=24)
     plt.tight_layout()
 
+    ax1 = f1.axes[0]
+    ax2 = f2.axes[0]
+    ax3 = f3.axes[0]
     # Compare with ED
-    data = np.loadtxt('enED.txt', skiprows=1)
+    '''data = np.loadtxt('enED.txt', skiprows=1)
     taus = data[:, 0]
     Es = data[:, 1]
     Eks = data[:, 2]
     EVs = data[:, 3]
-    ax1 = f1.axes[0]
     ax1.plot(taus,Eks,c='r',label="ED")
-    ax2 = f2.axes[0]
     ax2.plot(taus,EVs,c='r',label="ED")
-    ax3 = f3.axes[0]
     ax3.plot(taus,Es,c='r',label="ED")
-
-    f1.savefig("Ek.pdf")
-    f2.savefig("EV.pdf")
-    f3.savefig("E.pdf")
-    f4.savefig("sign.pdf")
 
     # Compare with ED using Trotter decompositions
     data = np.loadtxt('enTrotter.txt', skiprows=1)
@@ -124,16 +137,13 @@ if __name__ == "__main__":
     Es = data[:, 1]
     Eks = data[:, 2]
     EVs = data[:, 3]
-    ax1 = f1.axes[0]
     ax1.plot(taus,Eks,c='orange',label="Trotter")
-    ax2 = f2.axes[0]
     ax2.plot(taus,EVs,c='orange',label="Trotter")
-    ax3 = f3.axes[0]
     ax3.plot(taus,Es,c='orange',label="Trotter")
     
     ax1.legend()
     ax2.legend()
-    ax3.legend()
+    ax3.legend()'''
     ps.set((ax1,ax2,ax3))
 
     f1.savefig("Ek.pdf")
