@@ -49,6 +49,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     Hk, expV_up, expV_dn, auxflds = initQMC(Lx, Ly, tx, ty, U, xpbc, ypbc, dtau, nsteps, Nsites)
     expHk = exp(-dtau*Hk)
     expHk_half = exp(-0.5*dtau*Hk)
+    expHk_half_inv = exp(+0.5*dtau*Hk)
     Ntau = length(auxflds)
 
     # Initialize product states by sampling the MPS
@@ -57,13 +58,20 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     println("Initial conf: ",conf_beg," ",conf_end)
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
+
     # Compute the overlaps
     OMPS1 = MPSOverlap(conf_beg, mps)
     OMPS2 = MPSOverlap(conf_end, mps)
 
     # Initialize all the determinants
-    phis_up = initPhis_old2(phi1_up, phi2_up, expHk_half, auxflds, expV_up)
-    phis_dn = initPhis_old2(phi1_dn, phi2_dn, expHk_half, auxflds, expV_dn)
+    phiL_up = initPhis(phi1_up, expHk, expHk_half, auxflds, expV_up)
+    phiR_up = initPhis(phi2_up, expHk, expHk_half, reverse(auxflds), expV_up)
+    phiL_dn = initPhis(phi1_dn, expHk, expHk_half, auxflds, expV_dn)
+    phiR_dn = initPhis(phi2_dn, expHk, expHk_half, reverse(auxflds), expV_dn)
+    @assert length(phiL_up) == Ntau + 1
+    @assert length(phiR_up) == Ntau + 1
+    @assert length(phiL_dn) == Ntau + 1
+    @assert length(phiR_dn) == Ntau + 1
 
     # Initialize observables
     obs = Dict{String,Any}()
@@ -83,6 +91,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Write the observables' names
     println(file,"step Ek EV E sign nup ndn")
 
+
+
     # Monte Carlo sampling
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
     c = div(Ntau,2)
@@ -90,28 +100,46 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         # 1. Sample the left product state
         #    OMPS1: <MPS|conf1>
         tstart("MPS")
-        conf_beg, OMPS1 = sampleMPS!(conf_beg, mpsM, phis_up[1], phis_dn[1], latt)
-        phis_up[0], phis_dn[0] = prodDetUpDn(conf_beg)
+        conf_beg, OMPS1 = sampleMPS!(conf_beg, mpsM, phiR_up[end], phiR_dn[end], latt)
+        # Update phiL[1]
+        phi_up, phi_dn = prodDetUpDn(conf_beg)
+        phiL_up[1] = expHk_half * phi_up
+        phiL_dn[1] = expHk_half * phi_dn
         tend("MPS")
         #@assert abs(OMPS1-MPSOverlap(conf_beg, mps)) < 1e-14    # Check MPS overlap
-
-
 
         # 2. Sample the auxiliary fields from left to right
         #    ODet: <conf1|BB...B|conf2>
         tstart("Det")
         for i=1:Ntau
             # Sample the fields
-            phis_up[i], phis_dn[i], auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
-                                                              auxflds[i], expHk_half, expV_up, expV_dn; toRight=true)
-            # Update determinants
-            #phis_up[i] = phi_up
-            #phis_dn[i] = phi_dn
+            phi_up, phi_dn, ODet, auxflds[i] = sampleAuxField(phiL_up[i], phiL_dn[i], phiR_up[end-i], phiR_dn[end-i],
+                                                              expV_up, expV_dn, auxflds[i], true)
+            # Propagate B_K
+            if i == Ntau
+                phiL_up[i+1] = expHk_half * phi_up
+                phiL_dn[i+1] = expHk_half * phi_dn
+            else
+                phiL_up[i+1] = expHk * phi_up
+                phiL_dn[i+1] = expHk * phi_dn
+            end
 
             # Measure at the center slice
             if (i == c)
+                println("c ",c," ",length(phiR_up)-i-1)
+                phiLc_up = expHk_half * phi_up
+                phiLc_dn = expHk_half * phi_dn
+                phiRc_up = expHk_half_inv * phiR_up[end-i]
+                phiRc_dn = expHk_half_inv * phiR_dn[end-i]
                 O = ODet * conj(OMPS1) * OMPS2
-                measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+
+                println(O," ",ODet)
+                display(phiLc_up)
+                display(phiRc_up)
+                #error("stop")
+
+
+                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
             end
         end
         tend("Det")
@@ -120,8 +148,11 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         # 3. Sample the right product state
         #    OMPS2: <conf2|MPS>
         tstart("MPS")
-        conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phis_up[Ntau], phis_dn[Ntau], latt)
-        phis_up[Ntau+1], phis_dn[Ntau+1] = prodDetUpDn(conf_end)
+        conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phiL_up[end], phiL_dn[end], latt)
+        # Update phiR[1]
+        phi_up, phi_dn = prodDetUpDn(conf_end)
+        phiR_up[1] = expHk_half * phi_up
+        phiR_dn[1] = expHk_half * phi_dn
         tend("MPS")
         #@assert abs(OMPS2-MPSOverlap(conf_end, mps)) < 1e-14    # Check MPS overlap
 
@@ -132,16 +163,25 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         tstart("Det")
         for i=Ntau:-1:1
             # Sample the fields
-            phis_up[i], phis_dn[i], auxflds[i], ODet = sampleAuxField(phis_up[i-1], phis_dn[i-1], phis_up[i+1], phis_dn[i+1],
-                                                              auxflds[i], expHk_half, expV_up, expV_dn; toRight=false)
-            # Update determinants
-            #phis_up[i] = phi_up
-            #phis_dn[i] = phi_dn
+            phi_up, phi_dn, ODet, auxflds[i] = sampleAuxField(phiL_up[i], phiL_dn[i], phiR_up[end-i], phiR_dn[end-i],
+                                                              expV_up, expV_dn, auxflds[i], false)
+            # Propagate B_K
+            if i == 1
+                phiR_up[end-i+1] = expHk_half * phi_up
+                phiR_dn[end-i+1] = expHk_half * phi_dn
+            else
+                phiR_up[end-i+1] = expHk * phi_up
+                phiR_dn[end-i+1] = expHk * phi_dn
+            end
 
             # Measure at the center slice
             if (i == c+1)
                 O = ODet * conj(OMPS1) * OMPS2
-                measure!(phis_up[c], phis_dn[c], phis_up[c+1], phis_dn[c+1], sign(O), obs, para)
+                phiLc_up = expHk_half_inv * phiL_up[i]
+                phiLc_dn = expHk_half_inv * phiL_dn[i]
+                phiRc_up = expHk_half * phi_up
+                phiRc_dn = expHk_half * phi_dn
+                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
             end
         end
         tend("Det")

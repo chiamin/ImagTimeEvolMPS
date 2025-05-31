@@ -18,23 +18,36 @@ end
 
 # phis = [B_K/2|phi>, B_K B_V B_K/2|phi>, (B_K B_V)^2 B_K/2|phi>, ..., (B_K B_V)^{N-1} B_K/2|phi>]
 # length(phis) == N
-function initPhis(phi::Matrix{T}, expHk::Matrix{Float64}, expHk_half::Matrix{Float64}, auxflds::Vector{Vector{Int}}, expV::Vector{Float64})::Dict{Int,Matrix{T}} where T
+function initPhis(phi::Matrix{T}, expHk::Matrix{T}, expHk_half::Matrix{T}, auxflds::Vector{Vector{Int}}, expV::Vector{T})::Vector{Matrix{T}} where T
     N = length(auxflds)
     @assert N >= 2
 
     phis = Vector{Matrix{T}}()
 
-    phis[1] = expHk_half * phi
+
+    # First one
+    phi = expHk_half * phi
+    #phi = reOrthoDet(phi)
+    push!(phis, phi)
 
     # Middle ones
-    for i=2:N
-        phis[i] = phis[i-1]
-        applyV!(phis[i], auxflds[i-1], expV)
-        phis[i] = expHk * phis[i]
-        phis[i] = reOrthoDet(phis[i])   # reorthogonalize determinant
+    for i=1:N-1
+        phi = copy(phi)
+        applyV!(phi, auxflds[i], expV)
+        phi = expHk * phi
+        #phi = reOrthoDet(phi)   # reorthogonalize determinant
+        push!(phis, phi)
     end
 
-    @assert length(phis) == N
+    # Last one
+    phi = copy(phi)
+    applyV!(phi, auxflds[N], expV)
+    phi = expHk_half * phi
+    #phi = reOrthoDet(phi)
+    push!(phis, phi)
+    
+
+    @assert length(phis) == N+1
     return phis
 end
 
