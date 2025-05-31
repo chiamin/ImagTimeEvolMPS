@@ -143,30 +143,30 @@ end
 # Compute the overlap ratio O(x_i)/O and the inverse overlap inv(Phi1' * B_V(x_i) * Phi2)
 #
 # phi1 and phi2 are one row in the determinant matrices, but with the shapes as column vectors
-function ShermanMorrison_Overlap(Oinv::Matrix{T}, phi1::Vector{T}, phi2::Vector{T}, b::T)::Tuple{T,Matrix{T}} where T
+function ShermanMorrison_Overlap(Oinv::Matrix{T}, phi1::AbstractVector{T}, phi2::AbstractVector{T}, b::T)::Tuple{T,Matrix{T}} where T
     # Use Sherman-Morrison formula to compute overlap ratio <phi1|B_V(x_i)|phi2> / <phi1|phi2>
     # O^-1 |phi1'>
-    R = Oinv * conj(phi1)
+    R = Oinv * phi1
     # <phi2| O^-1
-    L = transpose(phi2) * Oinv
+    L = phi2' * Oinv
     # <phi2| O^-1 |phi1'>
-    Gii = transpose(phi2) * R
+    Gii = phi2' * R
 
     # O(x_i)/O = 1 + (b-1) * <phi2| O^-1 |phi1'>
     O_ratio = 1.0 + (b-1.0) * Gii
 
     # Update O^-1 by Sherman-Morrison formula
     factor = (1.0 - b) / (1.0 + (b-1.0) * Gii)
-    Oinv = Oinv + factor * R * L
+    Oinv_new = Oinv + factor * R * L
 
-    return O_ratio, Oinv
+    return O_ratio, Oinv_new
 end
 
 function sampleOneSite(
-phi1_up::Vector{T}, 
-phi1_dn::Vector{T}, 
-phi2_up::Vector{T}, 
-phi2_dn::Vector{T}, 
+phi1_up::AbstractVector{T}, 
+phi1_dn::AbstractVector{T}, 
+phi2_up::AbstractVector{T}, 
+phi2_dn::AbstractVector{T}, 
 Oinv_up::Matrix{T}, 
 Oinv_dn::Matrix{T}, 
 expV_up::Vector{Float64}, 
@@ -189,17 +189,11 @@ x::Int
     P = abs(O2) / (abs(O) + abs(O2))
     # Sampling
     rnd = rand()
-    #println("* ",rnd," ",P)
     if rnd < P
         return x2, O2, O2inv_up, O2inv_dn
-        #x = x2
-        #O = O2
-        #Oinv_up = O2inv_up
-        #Oinv_dn = O2inv_dn
     else
         return x, O, Oinv_up, Oinv_dn
     end
-    #return x, O, Oinv_up, Oinv_dn
 end
 
 # Sample x with probability <phi1|B_V(x)|phi2>
@@ -218,39 +212,31 @@ toRight::Bool
     Nsites,Npar = size(phi1_up)
 
     # Apply the current fields to phi2
-    println("applyV")
-    @time phi2x_up = copy(phi2_up)
-    @time phi2x_dn = copy(phi2_dn)
-    @time applyV!(phi2x_up, auxfld, expV_up)
-    @time applyV!(phi2x_dn, auxfld, expV_dn)
-    println("------------")
+    phi2x_up = copy(phi2_up)
+    phi2x_dn = copy(phi2_dn)
+    applyV!(phi2x_up, auxfld, expV_up)
+    applyV!(phi2x_dn, auxfld, expV_dn)
 
     # Compute overlap and inverse overlaps matrices
-    println("inverse")
-    @time begin
     Oup = phi1_up' * phi2x_up
     Odn = phi1_dn' * phi2x_dn
     Oinv_up = inv(Oup)
     Oinv_dn = inv(Odn)
     O = det(Oup) * det(Odn)
-    end
-    println("------------")
 
     # Sample
-    println("sample")
-    @time begin
     xs = copy(auxfld)
     for i=1:Nsites
         # Sample xi
-        println("i = ",i)
-        @time xs[i], O, Oinv_up, Oinv_dn = sampleOneSite(phi1_up[i,:], phi1_dn[i,:], phi2x_up[i,:], phi2x_dn[i,:], Oinv_up, Oinv_dn, expV_up, expV_dn, O, auxfld[i])
+        #println("i = ",i)
+        row1_up = @view phi1_up[i,:]
+        row1_dn = @view phi1_dn[i,:]
+        row2_up = @view phi2x_up[i,:]
+        row2_dn = @view phi2x_dn[i,:]
+        xs[i], O, Oinv_up, Oinv_dn = sampleOneSite(row1_up, row1_dn, row2_up, row2_dn, Oinv_up, Oinv_dn, expV_up, expV_dn, O, auxfld[i])
     end
-    end
-    println("------------")
 
     # Propagate phi
-    println("propagate")
-    @time begin
     if toRight
         phi_up = copy(phi1_up)
         phi_dn = copy(phi1_dn)
@@ -260,14 +246,10 @@ toRight::Bool
     end
     applyV!(phi_up, xs, expV_up)
     applyV!(phi_dn, xs, expV_dn)
-    end
-    println("------------")
 
     # Stabilize the determinant
-    println("reortho")
-    @time phi_up = reOrthoDet(phi_up)
-    @time phi_dn = reOrthoDet(phi_dn)
-    println("------------")
+    phi_up = reOrthoDet(phi_up)
+    phi_dn = reOrthoDet(phi_dn)
 
     return phi_up, phi_dn, O, xs
 end
@@ -331,7 +313,6 @@ toRight::Bool
         # Check determinant overlap
         #@assert abs(O - overlap(phi1_up, phi1_dn, phi_up, phi_dn)) < 1e-12
     end
-    # --------------------
 
     # Stabilize the determinant
     phi_up = reOrthoDet(phi_up)

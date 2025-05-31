@@ -226,7 +226,7 @@ function test_sampleOneSite()
 end
 
 function SampleALL_Test()
-    N, M = 16, 7
+    N, M = 32, 14
     phi1_up = rand(N,M)
     phi2_up = phi1_up
     phi1_dn = rand(N,M)
@@ -252,7 +252,7 @@ function SampleALL_Test()
 
     @test norm(phi_up - phi_up2) < 1e-12
     @test norm(phi_dn - phi_dn2) < 1e-12
-    @test abs(O - O2) < 1e-8
+    @test isapprox(O, O2, rtol=1e-12)
     @test sum(x .- x2) == 0
 end
 
