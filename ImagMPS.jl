@@ -126,19 +126,11 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
             # Measure at the center slice
             if (i == c)
-                println("c ",c," ",length(phiR_up)-i-1)
+                O = ODet * conj(OMPS1) * OMPS2
                 phiLc_up = expHk_half * phi_up
                 phiLc_dn = expHk_half * phi_dn
                 phiRc_up = expHk_half_inv * phiR_up[end-i]
                 phiRc_dn = expHk_half_inv * phiR_dn[end-i]
-                O = ODet * conj(OMPS1) * OMPS2
-
-                println(O," ",ODet)
-                display(phiLc_up)
-                display(phiRc_up)
-                #error("stop")
-
-
                 measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
             end
         end

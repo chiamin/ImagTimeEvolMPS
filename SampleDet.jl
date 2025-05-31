@@ -228,7 +228,6 @@ toRight::Bool
     xs = copy(auxfld)
     for i=1:Nsites
         # Sample xi
-        #println("i = ",i)
         row1_up = @view phi1_up[i,:]
         row1_dn = @view phi1_dn[i,:]
         row2_up = @view phi2x_up[i,:]
@@ -248,8 +247,8 @@ toRight::Bool
     applyV!(phi_dn, xs, expV_dn)
 
     # Stabilize the determinant
-    #phi_up = reOrthoDet(phi_up)
-    #phi_dn = reOrthoDet(phi_dn)
+    phi_up = reOrthoDet(phi_up)
+    phi_dn = reOrthoDet(phi_dn)
 
     return phi_up, phi_dn, O, xs
 end

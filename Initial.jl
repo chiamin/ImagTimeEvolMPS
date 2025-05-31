@@ -27,7 +27,7 @@ function initPhis(phi::Matrix{T}, expHk::Matrix{T}, expHk_half::Matrix{T}, auxfl
 
     # First one
     phi = expHk_half * phi
-    #phi = reOrthoDet(phi)
+    phi = reOrthoDet(phi)
     push!(phis, phi)
 
     # Middle ones
@@ -35,7 +35,7 @@ function initPhis(phi::Matrix{T}, expHk::Matrix{T}, expHk_half::Matrix{T}, auxfl
         phi = copy(phi)
         applyV!(phi, auxflds[i], expV)
         phi = expHk * phi
-        #phi = reOrthoDet(phi)   # reorthogonalize determinant
+        phi = reOrthoDet(phi)   # reorthogonalize determinant
         push!(phis, phi)
     end
 
@@ -43,7 +43,7 @@ function initPhis(phi::Matrix{T}, expHk::Matrix{T}, expHk_half::Matrix{T}, auxfl
     phi = copy(phi)
     applyV!(phi, auxflds[N], expV)
     phi = expHk_half * phi
-    #phi = reOrthoDet(phi)
+    phi = reOrthoDet(phi)
     push!(phis, phi)
     
 
