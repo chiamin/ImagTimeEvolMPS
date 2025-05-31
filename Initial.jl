@@ -16,31 +16,25 @@ function initQMC(Lx::Int, Ly::Int, tx::Float64, ty::Float64, U::Float64, xpbc::B
     return Hk, expV_up, expV_dn, auxflds
 end
 
-# The center is at the left
-# Suppose <phi_beg| B B |phi_end> = <phi_beg| (B_K/2 B_V B_K/2) (B_K/2 B_V B_K/2) |phi_end> 
-# If center at the very left: phis = <phi_beg|, B_K/2 B_V B_K B_V B_K/2|phi_end>, B_K B_V B_K/2|phi_end>, B_K/2|phi_end>
-# If center at the very right: phis = <phi_beg|B_K/2, <phi_beg|B_K/2 B_V B_K, <phi_beg|B_K/2 B_V B_K B_V B_K/2, |phi_end>
-function initPhis(phi_beg::Matrix{T}, phi_end::Matrix{T}, expHk::Matrix{Float64}, expHk_half::Matrix{Float64}, auxflds::Vector{Vector{Int}}, expV::Vector{Float64})::Dict{Int,Matrix{T}} where T
+# phis = [B_K/2|phi>, B_K B_V B_K/2|phi>, (B_K B_V)^2 B_K/2|phi>, ..., (B_K B_V)^{N-1} B_K/2|phi>]
+# length(phis) == N
+function initPhis(phi::Matrix{T}, expHk::Matrix{Float64}, expHk_half::Matrix{Float64}, auxflds::Vector{Vector{Int}}, expV::Vector{Float64})::Dict{Int,Matrix{T}} where T
     N = length(auxflds)
     @assert N >= 2
 
-    phis = Dict{Int,Matrix{T}}()
+    phis = Vector{Matrix{T}}()
 
-    # Last one
-    phis[N+1] = expHk_half * phi_end
+    phis[1] = expHk_half * phi
 
     # Middle ones
-    phi = copy(phi_end)
-    for i=N:-1:1
-        phis[i] = applyExpH(phis[i+1], auxflds[i], expHk_half, expV)
+    for i=2:N
+        phis[i] = phis[i-1]
+        applyV!(phis[i], auxflds[i-1], expV)
+        phis[i] = expHk * phis[i]
         phis[i] = reOrthoDet(phis[i])   # reorthogonalize determinant
     end
 
-    # First one
-    phis[0] = phi_beg
-
-    @assert length(phis) == N+2
-
+    @assert length(phis) == N
     return phis
 end
 
