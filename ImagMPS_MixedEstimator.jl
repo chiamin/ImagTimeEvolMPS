@@ -4,15 +4,14 @@ include("HSTrans.jl")
 include("DetTools.jl")
 include("SampleDet.jl")
 include("Hamiltonian.jl")
-include("dmrg.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
 using ITensorMPS
-#include("help.jl")
 
-seed = 1234567890123
+seed = time_ns()
 Random.seed!(seed)
+println("Random number seed: ",seed)
 
 function getED0(L, pbc, t, U, dtau, Ntau, U0)
     psi, E0, Hk, HV, H = ED_GS(L, pbc, t, U0)
@@ -40,6 +39,15 @@ function getEkEV(mps, Lx, Ly, tx, ty, U, xpbc, ypbc)
     return Ek, EV
 end
 
+function folder_has_files(path::String)::Bool
+    if !isdir(path)
+        error("The specified path is not a directory.")
+    end
+    # Filter out files only (not subdirectories)
+    files = filter(f -> isfile(joinpath(path, f)), readdir(path))
+    return !isempty(files)
+end
+
 function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, phiT_up, phiT_dn, write_step, dir)
     Nsites = Lx*Ly
     Npar = Nup+Ndn
@@ -54,9 +62,13 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
     # Initialize product states by sampling the MPS
     conf_end = ITensorMPS.sample(mps)
-    println("Initial conf: ",conf_end)
     phi1_up, phi1_dn = phiT_up, phiT_dn
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
+
+    println("Initial conf: ",conf_end)
+    open(dir*"/init.dat","a") do file
+        println(file,"Initial_conf: ",conf_end)
+    end
 
     # Compute the overlaps
     OMPS = MPSOverlap(conf_end, mps)
@@ -203,37 +215,51 @@ function main()
     write_step = 100
     write_data = false
 
+    # Make H MPO
+    N = Lx*Ly
+    sites = siteinds("Electron", N, conserve_qns=true)
+    ampo = Hubbard(Lx, Ly, tx, ty, U, 0, 0, 0, 0, xpbc, ypbc)
+    H = MPO(ampo,sites)
+
     # Initialize MPS
-    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=8, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    states = RandomState(N; Nup, Ndn)
+    psi_init = MPS(sites, states)
+    en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
     #writeMPS(psi_init,"data5/initMPS.txt")
+
+    # Get exact energy from DMRG
+    dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
+    E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
+    GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
 
     # Get the natural orbitals
     Cup = correlation_matrix(psi_init, "Cdagup", "Cup")
     Cdn = correlation_matrix(psi_init, "Cdagdn", "Cdn")
     eig_up = eigen(Cup)
     eig_dn = eigen(Cdn)
-    println(eig_up.values)
     phiT_up = eig_up.vectors[:,end-Nup+1:end]
     phiT_dn = eig_dn.vectors[:,end-Ndn+1:end]
-
 
     G_up = Greens_function(phiT_up, phiT_up)
     G_dn = Greens_function(phiT_dn, phiT_dn)
     H_k = Hk_onebody(Lx, Ly, tx, ty, 0.0, 0.0, 0.0, xpbc, ypbc)
-    Ek = kinetic_energy(G_up, G_dn, H_k)
-    EV = potential_energy(G_up, G_dn, U)
-    E = Ek+EV
-    println("Trial determinant energy = ",E," ",Ek," ",EV)
+    Ek_phiT = kinetic_energy(G_up, G_dn, H_k)
+    EV_phiT = potential_energy(G_up, G_dn, U)
+    E_phiT = Ek_phiT+EV_phiT
 
 
-    # Get exact energy from DMRG
-    dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
-    E_GS, psi_GS = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn, psi_init; nsweeps=1, maxdim=dims, cutoff=[1e-14])
-
-    dir = "test"
+    dir = "data_MixedEstimator/data4x4_N14_dtau0.02/10"
+    if false#folder_has_files(dir)
+        println("$dir already has files. Do you want to continue?")
+        ans = readline()
+        if ans != "y"
+            error("stopped")
+        end
+    end
     #dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)_dtau0.01/"
     # Measure the initial state and the ground state
     nups_init = expect(psi_init,"Nup")
@@ -266,9 +292,15 @@ function main()
         println(file,"ndn0 ",ndns_init)
         println(file,"nup_GS ",nups_GS)
         println(file,"ndn_GS ",ndns_GS)
+        println(file,"Init_MPS_conf ",states)
+        println(file,"Init_MPS_D ",init_D)
+        println(file,"GS_MPS_D ",GS_D)
+        println(file,"E_phiT ",E_phiT)
+        println(file,"Ek_phiT ",Ek_phiT)
+        println(file,"EV_phiT ",EV_phiT)
     end
 
-    for nsteps in [20,40,60,80]
+    for nsteps in [10,20,30,40,50]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir)
     end
 end

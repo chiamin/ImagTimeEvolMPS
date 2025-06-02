@@ -238,9 +238,11 @@ function Hk_onebody(Lx, Ly, tx, ty, tpr, tppx, tppy, periodic_x, periodic_y)
     return Hk
 end
 
-function RandomState(Nsite; Nup, Ndn, seed=1234567890123)
-    println("RandomMPS seed =",seed)
-    Random.seed!(seed)
+function RandomState(Nsite; Nup, Ndn, seed=0)
+    if seed != 0
+        println("RandomMPS seed =",seed)
+        Random.seed!(seed)
+    end
 
     notfull = zeros(Int, Nsite)
     for i=1:Nsite
@@ -290,7 +292,7 @@ function RandomState(Nsite; Nup, Ndn, seed=1234567890123)
     return states
 end
 
-function RandomConf(Nsites; Nup, Ndn, seed=1234567890123)
+function RandomConf(Nsites; Nup, Ndn, seed=0)
     @assert Nup <= Nsites && Ndn <= Nsites
     state = RandomState(Nsites; Nup=Nup, Ndn=Ndn, seed=seed)
     conf = Vector{Int}()

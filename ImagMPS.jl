@@ -4,15 +4,14 @@ include("HSTrans.jl")
 include("DetTools.jl")
 include("SampleDet.jl")
 include("Hamiltonian.jl")
-include("dmrg.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
 using ITensorMPS
-#include("help.jl")
 
-seed = 1234567890123
+seed = time_ns()
 Random.seed!(seed)
+println("Random number seed: ",seed)
 
 function getED0(L, pbc, t, U, dtau, Ntau, U0)
     psi, E0, Hk, HV, H = ED_GS(L, pbc, t, U0)
@@ -59,6 +58,10 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
 
+    open(dir*"/init.dat","a") do file
+        println(file,"Initial_conf: ",conf_beg," ",conf_end)
+    end
+        
     # Compute the overlaps
     OMPS1 = MPSOverlap(conf_beg, mps)
     OMPS2 = MPSOverlap(conf_end, mps)
@@ -223,14 +226,22 @@ function main()
     Nup = 7
     Ndn = 7
     U = 8.
-    dtau = 0.01
-    #nsteps = 10
-    N_samples = 1000
+    dtau = 0.02
+    N_samples = 1000000
     write_step = 100
     write_data = false
 
+    # Make H MPO
+    N = Lx*Ly
+    sites = siteinds("Electron", N, conserve_qns=true)
+    ampo = Hubbard(Lx, Ly, tx, ty, U, 0, 0, 0, 0, xpbc, ypbc)
+    H = MPO(ampo,sites)
+
     # Initialize MPS
-    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=1, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    states = RandomState(N; Nup, Ndn)
+    psi_init = MPS(sites, states)
+    en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
@@ -238,9 +249,17 @@ function main()
 
     # Get exact energy from DMRG
     dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
-    E_GS, psi_GS = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn, psi_init; nsweeps=1, maxdim=dims, cutoff=[1e-14])
+    E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
+    GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
 
-    dir = "test"
+    dir = "data/data4x4_N14_dtau0.02/10"
+    if false#folder_has_files(dir)
+        println("$dir already has files. Do you want to continue?")
+        ans = readline()
+        if ans != "y"
+            error("stopped")
+        end
+    end
     #dir = "data$(Lx)x$(Ly)_N$(Nup+Ndn)_dtau0.01/"
     # Measure the initial state and the ground state
     nups_init = expect(psi_init,"Nup")
@@ -273,9 +292,12 @@ function main()
         println(file,"ndn0 ",ndns_init)
         println(file,"nup_GS ",nups_GS)
         println(file,"ndn_GS ",ndns_GS)
+        println(file,"Init_MPS_conf ",states)
+        println(file,"Init_MPS_D ",init_D)
+        println(file,"GS_MPS_D ",GS_D)
     end
 
-    for nsteps in [20]#,40,60,80]
+    for nsteps in [10,20,30,40,50]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
     end
 end

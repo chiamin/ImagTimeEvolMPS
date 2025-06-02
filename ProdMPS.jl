@@ -1,7 +1,7 @@
 # A machine to compute the overlap of an MPS with a product state efficiently.
 # Use makeProdMPS to generate a ProdMPS object.
 # Use getOverlap! to compute the overlap with a product state.
-using ITensors
+using ITensors, ITensorMPS
 
 # Return [[A1_emp, A1_up, A1_dn, A1_updn], [A2_tmp, ...], ...]
 function getProdMPSTensors(mps::MPS)::Vector{Vector{ITensor}}
