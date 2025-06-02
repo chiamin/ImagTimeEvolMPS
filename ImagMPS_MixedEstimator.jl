@@ -40,7 +40,7 @@ function getEkEV(mps, Lx, Ly, tx, ty, U, xpbc, ypbc)
     return Ek, EV
 end
 
-function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step, dir)
+function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, phiT_up, phiT_dn, write_step, dir)
     Nsites = Lx*Ly
     Npar = Nup+Ndn
     tau = dtau * nsteps
@@ -53,15 +53,13 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     Ntau = length(auxflds)
 
     # Initialize product states by sampling the MPS
-    conf_beg = ITensorMPS.sample(mps)
-    conf_end = deepcopy(conf_beg)
-    println("Initial conf: ",conf_beg," ",conf_end)
-    phi1_up, phi1_dn = prodDetUpDn(conf_beg)
+    conf_end = ITensorMPS.sample(mps)
+    println("Initial conf: ",conf_end)
+    phi1_up, phi1_dn = phiT_up, phiT_dn
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
 
     # Compute the overlaps
-    OMPS1 = MPSOverlap(conf_beg, mps)
-    OMPS2 = MPSOverlap(conf_end, mps)
+    OMPS = MPSOverlap(conf_end, mps)
 
     # Initialize all the determinants
     phiL_up = initPhis(phi1_up, expHk, expHk_half, auxflds, expV_up)
@@ -97,19 +95,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
     c = div(Ntau,2)
     for iMC=1:N_samples
-        # 1. Sample the left product state
-        #    OMPS1: <MPS|conf1>
-        tstart("MPS")
-        conf_beg, OMPS1 = sampleMPS!(conf_beg, mpsM, phiR_up[end], phiR_dn[end], latt)
-        # Update phiL[1]
-        phi_up, phi_dn = prodDetUpDn(conf_beg)
-        phiL_up[1] = expHk_half * phi_up
-        phiL_dn[1] = expHk_half * phi_dn
-        tend("MPS")
-        #@assert abs(OMPS1-MPSOverlap(conf_beg, mps)) < 1e-14    # Check MPS overlap
-
-        # 2. Sample the auxiliary fields from left to right
-        #    ODet: <conf1|BB...B|conf2>
+        # 1. Sample the auxiliary fields from left to right
+        #    ODet: <phiT|BB...B|conf_end>
         tstart("Det")
         for i=1:Ntau
             # Sample the fields
@@ -126,7 +113,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
             # Measure at the center slice
             if (i == c)
-                O = ODet * conj(OMPS1) * OMPS2
+                O = ODet * conj(OMPS)
                 phiLc_up = expHk_half * phi_up
                 phiLc_dn = expHk_half * phi_dn
                 phiRc_up = expHk_half_inv * phiR_up[end-i]
@@ -137,10 +124,10 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         tend("Det")
 
 
-        # 3. Sample the right product state
+        # 2. Sample the right product state
         #    OMPS2: <conf2|MPS>
         tstart("MPS")
-        conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phiL_up[end], phiL_dn[end], latt)
+        conf_end, OMPS = sampleMPS!(conf_end, mpsM, phiL_up[end], phiL_dn[end], latt)
         # Update phiR[1]
         phi_up, phi_dn = prodDetUpDn(conf_end)
         phiR_up[1] = expHk_half * phi_up
@@ -150,7 +137,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
 
 
-        # 4. Sample the auxiliary fields from right to left
+        # 3. Sample the auxiliary fields from right to left
         #    ODet: <conf1|BB...B|conf2>
         tstart("Det")
         for i=Ntau:-1:1
@@ -168,7 +155,7 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 
             # Measure at the center slice
             if (i == c+1)
-                O = ODet * conj(OMPS1) * OMPS2
+                O = ODet * conj(OMPS)
                 phiLc_up = expHk_half_inv * phiL_up[i]
                 phiLc_dn = expHk_half_inv * phiL_dn[i]
                 phiRc_up = expHk_half * phi_up
@@ -196,19 +183,6 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         end
     end
 
-    #=
-    open(dir*"/ntau"*string(nsteps)*"_conf1.txt","w") do file
-        for (conf,val) in hist_conf1
-            println(file,conf,val)
-        end
-    end
-    open(dir*"/ntau"*string(nsteps)*"_conf2.txt","w") do file
-        for (conf,val) in hist_conf2
-            println(file,conf,val)
-        end
-    end
-    =#
-
     close(file)
     println("Total time: ")
     display(timer)
@@ -230,11 +204,30 @@ function main()
     write_data = false
 
     # Initialize MPS
-    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=1, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    en_init, psi_init = Hubbard_GS(Lx, Ly, tx, ty, U, xpbc, ypbc, Nup, Ndn; nsweeps=8, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
     #writeMPS(psi_init,"data5/initMPS.txt")
+
+    # Get the natural orbitals
+    Cup = correlation_matrix(psi_init, "Cdagup", "Cup")
+    Cdn = correlation_matrix(psi_init, "Cdagdn", "Cdn")
+    eig_up = eigen(Cup)
+    eig_dn = eigen(Cdn)
+    println(eig_up.values)
+    phiT_up = eig_up.vectors[:,end-Nup+1:end]
+    phiT_dn = eig_dn.vectors[:,end-Ndn+1:end]
+
+
+    G_up = Greens_function(phiT_up, phiT_up)
+    G_dn = Greens_function(phiT_dn, phiT_dn)
+    H_k = Hk_onebody(Lx, Ly, tx, ty, 0.0, 0.0, 0.0, xpbc, ypbc)
+    Ek = kinetic_energy(G_up, G_dn, H_k)
+    EV = potential_energy(G_up, G_dn, U)
+    E = Ek+EV
+    println("Trial determinant energy = ",E," ",Ek," ",EV)
+
 
     # Get exact energy from DMRG
     dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
@@ -275,8 +268,8 @@ function main()
         println(file,"ndn_GS ",ndns_GS)
     end
 
-    for nsteps in [20]#,40,60,80]
-        run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
+    for nsteps in [20,40,60,80]
+        run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir)
     end
 end
 
