@@ -9,7 +9,7 @@ include("Initial.jl")
 include("Timer.jl")
 using ITensorMPS
 
-seed = time_ns()
+seed = 196411470832444#time_ns()
 Random.seed!(seed)
 println("Random number seed: ",seed)
 
@@ -65,13 +65,13 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     phi1_up, phi1_dn = phiT_up, phiT_dn
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
 
-    println("Initial conf: ",conf_end)
-    open(dir*"/init.dat","a") do file
-        println(file,"Initial_conf: ",conf_end)
-    end
-
     # Compute the overlaps
     OMPS = MPSOverlap(conf_end, mps)
+
+    println("Initial conf: ",conf_end)
+    open(dir*"/init.dat","a") do file
+        println(file,"Initial_conf: ",conf_end," ",OMPS)
+    end
 
     # Initialize all the determinants
     phiL_up = initPhis(phi1_up, expHk, expHk_half, auxflds, expV_up)
@@ -84,7 +84,8 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     @assert length(phiR_dn) == Ntau + 1
 
     # Initialize observables
-    obs = Dict{String,Any}()
+    obs1 = Dict{String,Any}()
+    obsC = Dict{String,Any}()
 
     # Store some objects that will be used in measurement
     para = Dict{String,Any}()
@@ -97,9 +98,11 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
     # Reset the timer
     treset()
 
-    file = open(dir*"/ntau"*string(nsteps)*".dat","w")
+    fileC = open(dir*"/C_ntau"*string(nsteps)*".dat","w")
+    file1 = open(dir*"/1_ntau"*string(nsteps)*".dat","w")
     # Write the observables' names
-    println(file,"step Ek EV E sign nup ndn")
+    println(fileC,"step Ek EV E sign nup ndn")
+    println(file1,"step Ek EV E sign nup ndn")
 
 
 
@@ -130,7 +133,24 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
                 phiLc_dn = expHk_half * phi_dn
                 phiRc_up = expHk_half_inv * phiR_up[end-i]
                 phiRc_dn = expHk_half_inv * phiR_dn[end-i]
-                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
+                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
+            end
+            # Measure at the first slice
+            if (i == 1)
+                O = ODet * conj(OMPS)
+                display(phiL_up[1])
+                display(phiL_dn[1])
+                println("----------------------------------------")
+                measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
+                # Check energy
+                phir = rand(size(phiT_up)...)
+                G_up = Greens_function(phiL_up[1], phir)
+                G_dn = Greens_function(phiL_dn[1], phir)
+                Ek_phiT = kinetic_energy(G_up, G_dn, Hk)
+                EV_phiT = potential_energy(G_up, G_dn, U)
+                E_phiT = Ek_phiT+EV_phiT
+                println("Check energy: ",E_phiT)
+                println("overlap: ",ODet," ",conj(OMPS))
             end
         end
         tend("Det")
@@ -172,7 +192,12 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
                 phiLc_dn = expHk_half_inv * phiL_dn[i]
                 phiRc_up = expHk_half * phi_up
                 phiRc_dn = expHk_half * phi_dn
-                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
+                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
+            end
+            # Measure at the first slice
+            if (i == 1)
+                O = ODet * conj(OMPS)
+                measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
             end
         end
         tend("Det")
@@ -181,39 +206,49 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         # Write the observables
         if iMC%write_step == 0
             println(nsteps,": ",iMC,"/",N_samples)
-            Eki = getObs(obs, "Ek")
-            EVi = getObs(obs, "EV")
-            Ei = getObs(obs, "E")
-            nupi = getObs(obs, "nup")
-            ndni = getObs(obs, "ndn")
-            si = getObs(obs, "sign")
+            Eki = getObs(obsC, "Ek")
+            EVi = getObs(obsC, "EV")
+            Ei = getObs(obsC, "E")
+            nupi = getObs(obsC, "nup")
+            ndni = getObs(obsC, "ndn")
+            si = getObs(obsC, "sign")
 
-            println(file,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
-            flush(file)
+            println(fileC,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
+            flush(fileC)
 
-            cleanObs!(obs)
+            Eki = getObs(obs1, "Ek")
+            EVi = getObs(obs1, "EV")
+            Ei = getObs(obs1, "E")
+            nupi = getObs(obs1, "nup")
+            ndni = getObs(obs1, "ndn")
+            si = getObs(obs1, "sign")
+
+            println(file1,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
+            flush(file1)
+
+            cleanObs!(obsC)
         end
     end
 
-    close(file)
+    close(fileC)
+    close(file1)
     println("Total time: ")
     display(timer)
 end
 
 function main()
-    Lx=4
-    Ly=4
+    Lx=2
+    Ly=2
     tx=ty=1.0
     xpbc=false
     ypbc=false
-    Nup = 7
-    Ndn = 7
-    U = 8.
-    dtau = 0.01
-    #nsteps = 10
-    N_samples = 1000
-    write_step = 100
-    write_data = false
+    Nup = 2
+    Ndn = 2
+    U = 0.
+    dtau = 1.0
+    N_samples = 100
+    write_step = 1
+
 
     # Make H MPO
     N = Lx*Ly
@@ -224,7 +259,7 @@ function main()
     # Initialize MPS
     states = RandomState(N; Nup, Ndn)
     psi_init = MPS(sites, states)
-    en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    en_init, psi_init = dmrg(H, psi_init; nsweeps=1, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
     init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
     println("Initial energy = ",en_init)
 
@@ -232,7 +267,7 @@ function main()
     #writeMPS(psi_init,"data5/initMPS.txt")
 
     # Get exact energy from DMRG
-    dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
+    dims = [80]#,80,80,80,160,160,160,160,320,320,320,320,640]
     E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
     GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
 
@@ -252,6 +287,25 @@ function main()
     E_phiT = Ek_phiT+EV_phiT
 
 
+    # Exact
+    eig = eigen(H_k)
+    E_ex = sum(eig.values[1:Nup]) + sum(eig.values[1:Ndn])
+    phiT_up = eig.vectors[:,1:Nup]
+    phiT_dn = eig.vectors[:,1:Ndn]
+    println("Exact energy: ",E_ex)
+    # Check energy
+    phir = rand(size(phiT_up)...)
+    G_up = Greens_function(phiT_up, phir)
+    G_dn = Greens_function(phiT_dn, phir)
+    Ek_phiT = kinetic_energy(G_up, G_dn, H_k)
+    EV_phiT = potential_energy(G_up, G_dn, U)
+    E_phiT = Ek_phiT+EV_phiT
+    println("Check energy: ",E_phiT)
+    display(phiT_up)
+
+
+    dir = "test"
+    #=
     dir = "data_MixedEstimator/data4x4_N14_dtau0.02/10"
     if false#folder_has_files(dir)
         println("$dir already has files. Do you want to continue?")
@@ -299,8 +353,9 @@ function main()
         println(file,"Ek_phiT ",Ek_phiT)
         println(file,"EV_phiT ",EV_phiT)
     end
+    =#
 
-    for nsteps in [10,20,30,40,50]
+    for nsteps in [10]#,20,30,40,50]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir)
     end
 end

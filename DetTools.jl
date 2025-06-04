@@ -57,6 +57,7 @@ function reOrthoDet(phi::Matrix{T}) where T
     if sign(det(F.R)) < 0.
         Q[:, [1, 2]] = Q[:, [2, 1]]
     end
+    #@assert overlap(phi, Q) > 0
     tend("reOrtho")
     return Q
 end
