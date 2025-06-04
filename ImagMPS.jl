@@ -225,11 +225,10 @@ function main()
     ypbc=false
     Nup = 7
     Ndn = 7
-    U = 8.
+    U = 12.
     dtau = 0.02
     N_samples = 1000000
     write_step = 100
-    write_data = false
 
     # Make H MPO
     N = Lx*Ly
@@ -237,22 +236,32 @@ function main()
     ampo = Hubbard(Lx, Ly, tx, ty, U, 0, 0, 0, 0, xpbc, ypbc)
     H = MPO(ampo,sites)
 
+    dir = ARGS[1]
+
     # Initialize MPS
     states = RandomState(N; Nup, Ndn)
+    #states = ["Up","Dn","Dn","Up"]
     psi_init = MPS(sites, states)
     en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    #en_init, psi_init = dmrg(H, psi_init; nsweeps=4, maxdim=[2,2,2,2], cutoff=[1e-14])
     init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
     println("Initial energy = ",en_init)
+    # Write infomation
+    open(dir*"/init.dat","a") do file
+        println(file,"Init_MPS_conf ",states)
+    end
 
     # Write initial MPS to file
     #writeMPS(psi_init,"data5/initMPS.txt")
-
+    #=
     # Get exact energy from DMRG
     dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
+    #dims = [4,8,16,16,16,16]
     E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
     GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
+    =#
 
-    dir = "data/data4x4_N14_dtau0.02/10"
+    #=
     if false#folder_has_files(dir)
         println("$dir already has files. Do you want to continue?")
         ans = readline()
@@ -269,7 +278,7 @@ function main()
     Ek_init, EV_init = getEkEV(psi_init, Lx, Ly, tx, ty, U, xpbc, ypbc)
     Ek_GS, EV_GS = getEkEV(psi_GS, Lx, Ly, tx, ty, U, xpbc, ypbc)
     # Write the information for the initial state and the ground state
-    open(dir*"/init.dat","w") do file
+    open(dir*"/init.dat","a") do file
         println(file,"Lx ",Lx)
         println(file,"Ly ",Ly)
         println(file,"tx ",tx)
@@ -292,12 +301,11 @@ function main()
         println(file,"ndn0 ",ndns_init)
         println(file,"nup_GS ",nups_GS)
         println(file,"ndn_GS ",ndns_GS)
-        println(file,"Init_MPS_conf ",states)
-        println(file,"Init_MPS_D ",init_D)
         println(file,"GS_MPS_D ",GS_D)
+        println(file,"Init_MPS_D ",init_D)
     end
-
-    for nsteps in [10,20,30,40,50]
+    =#
+    for nsteps in [400]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
     end
 end

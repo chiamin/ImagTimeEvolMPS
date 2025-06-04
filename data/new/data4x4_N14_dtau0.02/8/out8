@@ -1,0 +1,42 @@
+Random number seed: 79732172040001
+Random state:["Emp", "Dn", "Emp", "Dn", "UpDn", "Up", "Up", "Up", "Emp", "UpDn", "Dn", "UpDn", "Emp", "Dn", "Up", "Emp"]
+After sweep 1 energy=-4.1403078319909135  maxlinkdim=16 maxerr=3.34E-16 time=0.674
+After sweep 2 energy=-6.323484906505329  maxlinkdim=20 maxerr=1.60E-03 time=0.255
+After sweep 3 energy=-6.864045563135761  maxlinkdim=20 maxerr=2.69E-03 time=0.280
+After sweep 4 energy=-7.0780476283649385  maxlinkdim=20 maxerr=2.84E-03 time=0.279
+After sweep 5 energy=-7.646697668644309  maxlinkdim=40 maxerr=1.65E-03 time=0.405
+After sweep 6 energy=-7.866729300560866  maxlinkdim=40 maxerr=2.07E-03 time=0.464
+After sweep 7 energy=-7.94241867584007  maxlinkdim=40 maxerr=1.47E-03 time=0.472
+After sweep 8 energy=-7.977766657910131  maxlinkdim=40 maxerr=1.23E-03 time=0.472
+After sweep 9 energy=-8.170464240379454  maxlinkdim=80 maxerr=4.51E-04 time=1.101
+After sweep 10 energy=-8.19762318350667  maxlinkdim=80 maxerr=5.92E-04 time=2.607
+After sweep 11 energy=-8.20988579810752  maxlinkdim=80 maxerr=6.78E-04 time=1.912
+After sweep 12 energy=-8.216623825277688  maxlinkdim=80 maxerr=7.21E-04 time=2.073
+Random number seed: 79760825680817
+Random state:["Emp", "Up", "UpDn", "UpDn", "Dn", "UpDn", "Dn", "UpDn", "Up", "Emp", "Emp", "Dn", "Up", "Emp", "Emp", "Emp"]
+After sweep 1 energy=17.233521775680966  maxlinkdim=16 maxerr=0.00E+00 time=1.102
+After sweep 2 energy=3.737817678616691  maxlinkdim=20 maxerr=1.96E-03 time=0.564
+After sweep 3 energy=-5.630251780824001  maxlinkdim=20 maxerr=2.58E-03 time=0.780
+After sweep 4 energy=-6.9480960091381645  maxlinkdim=20 maxerr=5.00E-03 time=0.740
+After sweep 5 energy=-7.459473175388461  maxlinkdim=40 maxerr=9.21E-04 time=1.198
+After sweep 6 energy=-7.606241841746282  maxlinkdim=40 maxerr=1.48E-03 time=1.299
+After sweep 7 energy=-7.695220394294913  maxlinkdim=40 maxerr=1.82E-03 time=1.332
+After sweep 8 energy=-7.764105734373644  maxlinkdim=40 maxerr=1.81E-03 time=1.107
+After sweep 9 energy=-8.005872350462342  maxlinkdim=80 maxerr=6.97E-04 time=1.977
+After sweep 10 energy=-8.073332727434584  maxlinkdim=80 maxerr=9.64E-04 time=2.948
+After sweep 11 energy=-8.111052726221256  maxlinkdim=80 maxerr=1.00E-03 time=3.392
+Random number seed: 79770316218867
+Random state:["Dn", "Emp", "Up", "Emp", "Dn", "UpDn", "UpDn", "Emp", "Emp", "UpDn", "Up", "Emp", "UpDn", "Emp", "Up", "Dn"]
+After sweep 1 energy=-5.715133849128512  maxlinkdim=16 maxerr=0.00E+00 time=2.395
+After sweep 2 energy=-7.176557906825714  maxlinkdim=20 maxerr=2.05E-03 time=1.137
+After sweep 12 energy=-8.14134342720448  maxlinkdim=80 maxerr=1.01E-03 time=2.405
+After sweep 3 energy=-7.467587540681493  maxlinkdim=20 maxerr=3.39E-03 time=0.968
+After sweep 4 energy=-7.56126731677301  maxlinkdim=20 maxerr=3.05E-03 time=0.839
+After sweep 5 energy=-7.964668887971925  maxlinkdim=40 maxerr=1.01E-03 time=1.190
+After sweep 6 energy=-8.0447247617085  maxlinkdim=40 maxerr=1.15E-03 time=1.047
+After sweep 7 energy=-8.079379237987798  maxlinkdim=40 maxerr=1.12E-03 time=1.177
+After sweep 8 energy=-8.09845805641579  maxlinkdim=40 maxerr=1.09E-03 time=1.239
+After sweep 9 energy=-8.259914579950586  maxlinkdim=80 maxerr=4.65E-04 time=2.124
+After sweep 10 energy=-8.276247456186276  maxlinkdim=80 maxerr=5.99E-04 time=2.981
+After sweep 11 energy=-8.280753478612002  maxlinkdim=80 maxerr=6.20E-04 time=2.959
+After sweep 12 energy=-8.282824262174277  maxlinkdim=80 maxerr=6.10E-04 time=2.297
