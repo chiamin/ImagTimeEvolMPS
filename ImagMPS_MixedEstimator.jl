@@ -1,3 +1,4 @@
+using HDF5
 import Random
 using LinearAlgebra
 include("HSTrans.jl")
@@ -201,20 +202,22 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
 end
 
 function main()
-    Lx=4
-    Ly=4
+    Lx=2
+    Ly=2
     tx=ty=1.0
     xpbc=false
     ypbc=false
-    Nup = 7
-    Ndn = 7
+    Nup = 2
+    Ndn = 2
     U = 8.
-    dtau = 0.01
+    dtau = 0.02
     #nsteps = 10
-    N_samples = 1000
+    N_samples = 4000000
     write_step = 100
     write_data = false
 
+    dir="/home/nsysu601/ImagMPS/data_MixedEstimator/data4x4_N14/dtau0.02/"
+    
     # Make H MPO
     N = Lx*Ly
     sites = siteinds("Electron", N, conserve_qns=true)
@@ -222,17 +225,19 @@ function main()
     H = MPO(ampo,sites)
 
     # Initialize MPS
-    states = RandomState(N; Nup, Ndn)
+    states = ["Up","Dn","Dn","Up"]#RandomState(N; Nup, Ndn)
     psi_init = MPS(sites, states)
-    en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    #en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    en_init, psi_init = dmrg(H, psi_init; nsweeps=4, maxdim=[2,2,4,4], cutoff=[1e-14])
     init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
-    #writeMPS(psi_init,"data5/initMPS.txt")
+    writeMPS(psi_init,dir*"/initMPS.txt")
 
     # Get exact energy from DMRG
-    dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
+    #dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
+    dims = [10,10,20,20,20]
     E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
     GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
 
@@ -252,7 +257,6 @@ function main()
     E_phiT = Ek_phiT+EV_phiT
 
 
-    dir = "data_MixedEstimator/data4x4_N14_dtau0.02/10"
     if false#folder_has_files(dir)
         println("$dir already has files. Do you want to continue?")
         ans = readline()
@@ -270,6 +274,7 @@ function main()
     Ek_GS, EV_GS = getEkEV(psi_GS, Lx, Ly, tx, ty, U, xpbc, ypbc)
     # Write the information for the initial state and the ground state
     open(dir*"/init.dat","w") do file
+        println(file,"randomSeed ",seed)
         println(file,"Lx ",Lx)
         println(file,"Ly ",Ly)
         println(file,"tx ",tx)
@@ -300,7 +305,22 @@ function main()
         println(file,"EV_phiT ",EV_phiT)
     end
 
-    for nsteps in [10,20,30,40,50]
+    f = h5open(dir*"/psi.h5","w")
+    write(f,"psi_init",psi_init)
+    write(f,"psi_GS",psi_GS)
+    write(f,"phiT_up",phiT_up)
+    write(f,"phiT_dn",phiT_dn)
+    close(f)
+    error("stop")
+    
+
+    f = h5open(dir*"/psi.h5","r")
+    psi_init = read(f,"psi_init",MPS)
+    phiT_up = read(f["phiT_up"])
+    phiT_dn = read(f["phiT_dn"])
+    close(f)
+
+    for nsteps in [parse(Int,ARGS[1])]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir)
     end
 end
