@@ -2,9 +2,53 @@ include("SampleMPSDet.jl")
 include("SampleOcc.jl")
 include("DetTools.jl")
 include("Measure.jl")
-using Combinatorics, LinearAlgebra
+using Combinatorics, LinearAlgebra, BitIntegers
 
-function getAmplitudes(mps::MPS)
+function parse_value(s)
+    s_lower = lowercase(s)
+    if s_lower == "true"
+        return true
+    elseif s_lower == "false"
+        return false
+    end
+    try
+        return parse(Int, s)
+    catch
+        try
+            return parse(Float64, s)
+        catch
+            return s
+        end
+    end
+end
+
+function read_params(filename)
+    params = Dict{String, Any}()
+    for line in eachline(filename)
+        stripped = strip(line)
+        isempty(stripped) && continue
+        startswith(stripped, "#") && continue
+
+        if occursin("=", stripped)
+            keyval = split(stripped, "=", limit=2)
+            key = strip(keyval[1])
+            raw_values = split(strip(keyval[2]))
+        else
+            parts = split(stripped)
+            length(parts) < 2 && continue
+            key = parts[1]
+            raw_values = parts[2:end]
+        end
+
+        values = parse_value.(raw_values)
+        params[key] = length(values) == 1 ? values[1] : values
+    end
+    return params
+end
+
+
+
+function getMPSAmplitudes(mps::MPS)
     confs = []
     ampls = []
     for i1=1:4  
@@ -75,8 +119,6 @@ function print_state_amplitudes(psi::Vector{Float64}, basis::Vector{Tuple{Int, I
         println("$(config) $amplitude")
     end
 end
-
-using Combinatorics, LinearAlgebra, BitIntegers
 
 function generate_basis(N_sites::Int, N_up::Int, N_down::Int)
     up_configs = collect(combinations(0:N_sites-1, N_up))
@@ -153,10 +195,65 @@ end
 
 # Write psi to file
 function writeMPS(psi, filename)
-    confs, ampls = getAmplitudes(psi)
+    confs, ampls = getMPSAmplitudes(psi)
     open(filename,"w") do file
-    for i=1:length(confs)
-        println(file,confs[i]," ",ampls[i])
+        for i=1:length(confs)
+            println(file,confs[i]," ",ampls[i])
+        end
     end
 end
+
+"""
+    compute_all_amplitudes(Φ_up::Matrix, Φ_dn::Matrix)
+
+Compute wavefunction amplitudes for all real-space basis configurations.
+Each configuration is a vector of Ints: 1 (empty), 2 (up), 3 (down), 4 (doubly occupied)
+"""
+function compute_all_amplitudes(Φ_up::Matrix, Φ_dn::Matrix)
+    L = size(Φ_up, 1)
+    N_up = size(Φ_up, 2)
+    N_dn = size(Φ_dn, 2)
+
+    configs = Vector{Vector{Int}}()
+    amplitudes = Float64[]
+
+    for up_sites in combinations(1:L, N_up)
+        for dn_sites in combinations(1:L, N_dn)
+            # Build configuration
+            config = fill(1, L)
+            for i in up_sites
+                config[i] = 2
+            end
+            for i in dn_sites
+                if config[i] == 2
+                    config[i] = 4  # doubly occupied
+                else
+                    config[i] = 3
+                end
+            end
+
+            # Extract rows for determinant calculation
+            M_up = Φ_up[collect(up_sites), :]
+            M_dn = Φ_dn[collect(dn_sites), :]
+            amp = det(M_up) * det(M_dn)
+
+            push!(configs, config)
+            push!(amplitudes, amp)
+        end
     end
+
+    return configs, amplitudes
+end
+
+function writeDet(Φ_up::Matrix, Φ_dn::Matrix, filename::String)
+    configs, amplitudes = compute_all_amplitudes(Φ_up, Φ_dn)
+
+    open(filename, "w") do io
+        for (conf, amp) in zip(configs, amplitudes)
+            if abs(amp) > 1e-12  # tolerance for numerical zero
+                println(io, string(conf), " ", amp)
+            end
+        end
+    end
+end
+

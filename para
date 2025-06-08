@@ -1,0 +1,18 @@
+Lx = 2
+Ly = 2
+tx = 1.0
+ty = 1.0
+xPBC = false
+yPBC = false
+Nup = 2
+Ndn = 2
+U = 8.0
+dtau = 0.02
+nsteps = 20
+N_samples = 1000000
+write_step = 100
+dir = test
+mode = MPS2
+writeInitFile = init.txt
+InitMode = false
+

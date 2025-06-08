@@ -7,6 +7,7 @@ include("Hamiltonian.jl")
 include("SampleMPSDet.jl")
 include("Initial.jl")
 include("Timer.jl")
+include("help.jl")
 using ITensorMPS
 
 seed = time_ns()
@@ -199,35 +200,22 @@ function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, m
         end
     end
 
-    #=
-    open(dir*"/ntau"*string(nsteps)*"_conf1.txt","w") do file
-        for (conf,val) in hist_conf1
-            println(file,conf,val)
-        end
-    end
-    open(dir*"/ntau"*string(nsteps)*"_conf2.txt","w") do file
-        for (conf,val) in hist_conf2
-            println(file,conf,val)
-        end
-    end
-    =#
-
     close(file)
     println("Total time: ")
     display(timer)
 end
 
 function main()
-    Lx=4
-    Ly=4
+    Lx=2
+    Ly=2
     tx=ty=1.0
     xpbc=false
     ypbc=false
-    Nup = 7
-    Ndn = 7
+    Nup = 2
+    Ndn = 2
     U = 12.
     dtau = 0.02
-    N_samples = 1000000
+    N_samples = 100000
     write_step = 100
 
     # Make H MPO
@@ -236,32 +224,29 @@ function main()
     ampo = Hubbard(Lx, Ly, tx, ty, U, 0, 0, 0, 0, xpbc, ypbc)
     H = MPO(ampo,sites)
 
-    dir = ARGS[1]
+    dir = "test"#ARGS[1]
 
     # Initialize MPS
-    states = RandomState(N; Nup, Ndn)
-    #states = ["Up","Dn","Dn","Up"]
+    #states = RandomState(N; Nup, Ndn)
+    states = ["Up","Dn","Dn","Up"]
     psi_init = MPS(sites, states)
-    en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
-    #en_init, psi_init = dmrg(H, psi_init; nsweeps=4, maxdim=[2,2,2,2], cutoff=[1e-14])
+    #en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    en_init, psi_init = dmrg(H, psi_init; nsweeps=4, maxdim=[2,2,2,2], cutoff=[1e-14])
     init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
     println("Initial energy = ",en_init)
-    # Write infomation
-    open(dir*"/init.dat","a") do file
-        println(file,"Init_MPS_conf ",states)
-    end
 
     # Write initial MPS to file
-    #writeMPS(psi_init,"data5/initMPS.txt")
-    #=
+    writeMPS(psi_init,"initMPS.txt")
+    error("stop")
+
     # Get exact energy from DMRG
     dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
     #dims = [4,8,16,16,16,16]
     E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
     GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
-    =#
+    
 
-    #=
+    
     if false#folder_has_files(dir)
         println("$dir already has files. Do you want to continue?")
         ans = readline()
@@ -279,6 +264,7 @@ function main()
     Ek_GS, EV_GS = getEkEV(psi_GS, Lx, Ly, tx, ty, U, xpbc, ypbc)
     # Write the information for the initial state and the ground state
     open(dir*"/init.dat","a") do file
+        println(file,"randomSeed ",seed)
         println(file,"Lx ",Lx)
         println(file,"Ly ",Ly)
         println(file,"tx ",tx)
@@ -303,9 +289,10 @@ function main()
         println(file,"ndn_GS ",ndns_GS)
         println(file,"GS_MPS_D ",GS_D)
         println(file,"Init_MPS_D ",init_D)
+        println(file,"Init_MPS_conf ",states)
     end
-    =#
-    for nsteps in [400]
+
+    for nsteps in [1]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
     end
 end
