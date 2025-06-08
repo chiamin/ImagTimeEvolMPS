@@ -153,7 +153,7 @@ function main()
             println(file,"dtau ",dtau)
             println(file,"N_samples ",N_samples)
             println(file,"write_step ",write_step)
-            println(file,"N_steps ",nsteps)
+            println(file,"nsteps ",nsteps)
             println(file,"E0 ",en_init)
             println(file,"Ek0 ",Ek_init)
             println(file,"EV0 ",EV_init)
@@ -185,6 +185,10 @@ function main()
         phiT_up = read(f["phiT_up"])
         phiT_dn = read(f["phiT_dn"])
         close(f)
+
+        for (k, v) in params
+            println("$k = $v")
+        end
 
         if mode == "MPS2"
             runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir; suffix=suffix)
