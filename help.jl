@@ -4,7 +4,8 @@ include("DetTools.jl")
 include("Measure.jl")
 using Combinatorics, LinearAlgebra, BitIntegers
 
-function parse_value(s)
+# Util to parse strings into types
+function parse_value(s::AbstractString)
     s_lower = lowercase(s)
     if s_lower == "true"
         return true
@@ -17,12 +18,25 @@ function parse_value(s)
         try
             return parse(Float64, s)
         catch
-            return s
+            return String(s)
         end
     end
 end
 
-function read_params(filename)
+# Handle lists like [1,2,3]
+function parse_line_value(raw::AbstractString)
+    stripped = strip(raw)
+    if startswith(stripped, "[") && endswith(stripped, "]")
+        inner = strip(stripped[2:end-1])
+        elements = split(inner, ",")
+        return parse_value.(strip.(elements))
+    else
+        return parse_value(stripped)
+    end
+end
+
+# Read from config file
+function read_params(filename::AbstractString)
     params = Dict{String, Any}()
     for line in eachline(filename)
         stripped = strip(line)
@@ -32,20 +46,47 @@ function read_params(filename)
         if occursin("=", stripped)
             keyval = split(stripped, "=", limit=2)
             key = strip(keyval[1])
-            raw_values = split(strip(keyval[2]))
-        else
-            parts = split(stripped)
-            length(parts) < 2 && continue
-            key = parts[1]
-            raw_values = parts[2:end]
+            raw_value = keyval[2]
+            params[key] = parse_line_value(raw_value)
         end
-
-        values = parse_value.(raw_values)
-        params[key] = length(values) == 1 ? values[1] : values
     end
     return params
 end
 
+# Parse --key=value from ARGS
+function parse_args(args)
+    options = Dict{String, String}()
+    for arg in args
+        if occursin("=", arg)
+            key, val = split(arg, "=", limit=2)
+            options[key] = val
+        end
+    end
+    return options
+end
+
+# Override config values with CLI args
+function override_params_with_args!(params::Dict{String,Any}, args::Dict{String,String})
+    for (key, val_str) in args
+        key_clean = replace(key, r"^--" => "")
+        params[key_clean] = parse_line_value(val_str)
+    end
+    return params
+end
+
+# Main entry
+function para_example()
+    params = read_params("config.txt")
+    args = parse_args(ARGS)
+    override_params_with_args!(params, args)
+
+    println("Final parameters:")
+    for (k, v) in params
+        println("$k = $v")
+    end
+end
+
+#----------------------------------------------------
 
 
 function getMPSAmplitudes(mps::MPS)

@@ -1,5 +1,5 @@
 
-function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step, dir)
+function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step, dir; suffix="")
     Nsites = Lx*Ly
     Npar = Nup+Ndn
     tau = dtau * nsteps
@@ -50,7 +50,7 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     # Reset the timer
     treset()
 
-    file = open(dir*"/ntau"*string(nsteps)*".dat","w")
+    file = open(dir*"/ntau"*string(nsteps)*suffix*".dat","w")
     # Write the observables' names
     println(file,"step Ek EV E sign nup ndn")
 
@@ -164,7 +164,7 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     display(timer)
 end
 
-function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, phiT_up, phiT_dn, write_step, dir)
+function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, phiT_up, phiT_dn, write_step, dir; suffix="")
     Nsites = Lx*Ly
     Npar = Nup+Ndn
     tau = dtau * nsteps
@@ -214,8 +214,8 @@ function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     # Reset the timer
     treset()
 
-    fileC = open(dir*"/c_ntau"*string(nsteps)*".dat","w")
-    file1 = open(dir*"/l_ntau"*string(nsteps)*".dat","w")
+    fileC = open(dir*"/c_ntau"*string(nsteps)*suffix*".dat","w")
+    file1 = open(dir*"/l_ntau"*string(nsteps)*suffix*".dat","w")
     # Write the observables' names
     println(fileC,"step Ek EV E sign nup ndn")
     println(file1,"step Ek EV E sign nup ndn")

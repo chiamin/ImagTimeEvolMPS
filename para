@@ -9,10 +9,12 @@ Ndn = 2
 U = 8.0
 dtau = 0.02
 nsteps = 20
-N_samples = 1000000
-write_step = 100
+N_samples = 20
+write_step = 10
 dir = test
 mode = MPS2
 writeInitFile = init.txt
+initDMRG_dims = [2,2,2,2]
+GS_DMRG_dims = [10,10,20,20,20]
+randSeed = 0
 InitMode = false
-

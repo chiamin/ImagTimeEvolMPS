@@ -12,10 +12,6 @@ include("Timer.jl")
 include("help.jl")
 include("RunMC.jl")
 
-seed = 196411470832444#time_ns()
-Random.seed!(seed)
-println("Random number seed: ",seed)
-
 function getED0(L, pbc, t, U, dtau, Ntau, U0)
     psi, E0, Hk, HV, H = ED_GS(L, pbc, t, U0)
     _, E0, Hk, HV, H = ED_GS(L, pbc, t, U)
@@ -51,196 +47,12 @@ function folder_has_files(path::String)::Bool
     return !isempty(files)
 end
 
-function run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, phiT_up, phiT_dn, write_step, dir)
-    Nsites = Lx*Ly
-    Npar = Nup+Ndn
-    tau = dtau * nsteps
-
-    # Initialize for QMC
-    Hk, expV_up, expV_dn, auxflds = initQMC(Lx, Ly, tx, ty, U, xpbc, ypbc, dtau, nsteps, Nsites)
-    expHk = exp(-dtau*Hk)
-    expHk_half = exp(-0.5*dtau*Hk)
-    expHk_half_inv = exp(+0.5*dtau*Hk)
-    Ntau = length(auxflds)
-
-    # Initialize product states by sampling the MPS
-    conf_end = ITensorMPS.sample(mps)
-    phi1_up, phi1_dn = phiT_up, phiT_dn
-    phi2_up, phi2_dn = prodDetUpDn(conf_end)
-
-    # Compute the overlaps
-    OMPS = MPSOverlap(conf_end, mps)
-
-    println("Initial conf: ",conf_end)
-    open(dir*"/init.dat","a") do file
-        println(file,"Initial_conf: ",conf_end," ",OMPS)
-    end
-
-    # Initialize all the determinants
-    phiL_up = initPhis(phi1_up, expHk, expHk_half, auxflds, expV_up)
-    phiR_up = initPhis(phi2_up, expHk, expHk_half, reverse(auxflds), expV_up)
-    phiL_dn = initPhis(phi1_dn, expHk, expHk_half, auxflds, expV_dn)
-    phiR_dn = initPhis(phi2_dn, expHk, expHk_half, reverse(auxflds), expV_dn)
-    @assert length(phiL_up) == Ntau + 1
-    @assert length(phiR_up) == Ntau + 1
-    @assert length(phiL_dn) == Ntau + 1
-    @assert length(phiR_dn) == Ntau + 1
-
-    # Initialize observables
-    obs1 = Dict{String,Any}()
-    obsC = Dict{String,Any}()
-
-    # Store some objects that will be used in measurement
-    para = Dict{String,Any}()
-    para["Hk"] = Hk
-    para["U"] = U
-
-    # Initialize MPS machine which is efficient in computing the overlap with a product state
-    mpsM = makeProdMPS(mps)
-
-    # Reset the timer
-    treset()
-
-    fileC = open(dir*"/C_ntau"*string(nsteps)*".dat","w")
-    file1 = open(dir*"/1_ntau"*string(nsteps)*".dat","w")
-    # Write the observables' names
-    println(fileC,"step Ek EV E sign nup ndn")
-    println(file1,"step Ek EV E sign nup ndn")
-
-
-
-    # Monte Carlo sampling
-    latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
-    c = div(Ntau,2)
-    for iMC=1:N_samples
-        # 1. Sample the auxiliary fields from left to right
-        #    ODet: <phiT|BB...B|conf_end>
-        tstart("Det")
-        for i=1:Ntau
-            # Sample the fields
-            phi_up, phi_dn, ODet, auxflds[i] = sampleAuxField(phiL_up[i], phiL_dn[i], phiR_up[end-i], phiR_dn[end-i],
-                                                              expV_up, expV_dn, auxflds[i], true)
-            # Propagate B_K
-            if i == Ntau
-                phiL_up[i+1] = expHk_half * phi_up
-                phiL_dn[i+1] = expHk_half * phi_dn
-            else
-                phiL_up[i+1] = expHk * phi_up
-                phiL_dn[i+1] = expHk * phi_dn
-            end
-
-            # Measure at the center slice
-            if (i == c)
-                O = ODet * conj(OMPS)
-                phiLc_up = expHk_half * phi_up
-                phiLc_dn = expHk_half * phi_dn
-                phiRc_up = expHk_half_inv * phiR_up[end-i]
-                phiRc_dn = expHk_half_inv * phiR_dn[end-i]
-                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
-            end
-            # Measure at the first slice
-            if (i == 1)
-                O = ODet * conj(OMPS)
-                display(phiL_up[1])
-                display(phiL_dn[1])
-                println("----------------------------------------")
-                measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
-                # Check energy
-                phir = rand(size(phiT_up)...)
-                G_up = Greens_function(phiL_up[1], phir)
-                G_dn = Greens_function(phiL_dn[1], phir)
-                Ek_phiT = kinetic_energy(G_up, G_dn, Hk)
-                EV_phiT = potential_energy(G_up, G_dn, U)
-                E_phiT = Ek_phiT+EV_phiT
-                println("Check energy: ",E_phiT)
-                println("overlap: ",ODet," ",conj(OMPS))
-            end
-        end
-        tend("Det")
-
-
-        # 2. Sample the right product state
-        #    OMPS2: <conf2|MPS>
-        tstart("MPS")
-        conf_end, OMPS = sampleMPS!(conf_end, mpsM, phiL_up[end], phiL_dn[end], latt)
-        # Update phiR[1]
-        phi_up, phi_dn = prodDetUpDn(conf_end)
-        phiR_up[1] = expHk_half * phi_up
-        phiR_dn[1] = expHk_half * phi_dn
-        tend("MPS")
-        #@assert abs(OMPS2-MPSOverlap(conf_end, mps)) < 1e-14    # Check MPS overlap
-
-
-
-        # 3. Sample the auxiliary fields from right to left
-        #    ODet: <conf1|BB...B|conf2>
-        tstart("Det")
-        for i=Ntau:-1:1
-            # Sample the fields
-            phi_up, phi_dn, ODet, auxflds[i] = sampleAuxField(phiL_up[i], phiL_dn[i], phiR_up[end-i], phiR_dn[end-i],
-                                                              expV_up, expV_dn, auxflds[i], false)
-            # Propagate B_K
-            if i == 1
-                phiR_up[end-i+1] = expHk_half * phi_up
-                phiR_dn[end-i+1] = expHk_half * phi_dn
-            else
-                phiR_up[end-i+1] = expHk * phi_up
-                phiR_dn[end-i+1] = expHk * phi_dn
-            end
-
-            # Measure at the center slice
-            if (i == c+1)
-                O = ODet * conj(OMPS)
-                phiLc_up = expHk_half_inv * phiL_up[i]
-                phiLc_dn = expHk_half_inv * phiL_dn[i]
-                phiRc_up = expHk_half * phi_up
-                phiRc_dn = expHk_half * phi_dn
-                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
-            end
-            # Measure at the first slice
-            if (i == 1)
-                O = ODet * conj(OMPS)
-                measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
-            end
-        end
-        tend("Det")
-
-
-        # Write the observables
-        if iMC%write_step == 0
-            println(nsteps,": ",iMC,"/",N_samples)
-            Eki = getObs(obsC, "Ek")
-            EVi = getObs(obsC, "EV")
-            Ei = getObs(obsC, "E")
-            nupi = getObs(obsC, "nup")
-            ndni = getObs(obsC, "ndn")
-            si = getObs(obsC, "sign")
-
-            println(fileC,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
-            flush(fileC)
-
-            Eki = getObs(obs1, "Ek")
-            EVi = getObs(obs1, "EV")
-            Ei = getObs(obs1, "E")
-            nupi = getObs(obs1, "nup")
-            ndni = getObs(obs1, "ndn")
-            si = getObs(obs1, "sign")
-
-            println(file1,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
-            flush(file1)
-
-            cleanObs!(obsC)
-        end
-    end
-
-    close(fileC)
-    close(file1)
-    println("Total time: ")
-    display(timer)
-end
-
 function main()
     params = read_params(ARGS[1])
+    # Update parameters with arguments
+    args = parse_args(ARGS)
+    override_params_with_args!(params, args)
+
     Lx = params["Lx"]
     Ly = params["Ly"]
     tx = params["tx"]
@@ -257,7 +69,17 @@ function main()
     dir = params["dir"]
     writeInitFile = params["writeInitFile"]
     mode = params["mode"]
+    initDMRG_dims = params["initDMRG_dims"]
+    GS_DMRG_dims = params["GS_DMRG_dims"]
+    seed = params["randSeed"]
     init_mode = params["InitMode"]
+    suffix = get(params, "suffix", "")
+
+    if seed == 0
+        seed = time_ns()
+    end
+    Random.seed!(seed)
+    println("Random number seed: ",seed)
 
     if init_mode
         # Make H MPO
@@ -269,8 +91,7 @@ function main()
         # Initialize MPS
         states = ["Up","Dn","Dn","Up"]#RandomState(N; Nup, Ndn)
         psi_init = MPS(sites, states)
-        #en_init, psi_init = dmrg(H, psi_init; nsweeps=12, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
-        en_init, psi_init = dmrg(H, psi_init; nsweeps=4, maxdim=[2,2,4,4], cutoff=[1e-14])
+        en_init, psi_init = dmrg(H, psi_init; nsweeps=length(initDMRG_dims), maxdim=initDMRG_dims, cutoff=[1e-14])
         init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
         println("Initial energy = ",en_init)
 
@@ -278,9 +99,7 @@ function main()
         writeMPS(psi_init,dir*"/initMPS.txt")
 
         # Get exact energy from DMRG
-        #dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
-        dims = [10,10,20,20,20]
-        E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
+        E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(GS_DMRG_dims), maxdim=GS_DMRG_dims, cutoff=[1e-14])
         GS_D = maximum([linkdim(psi_GS, i) for i in 1:N-1])
 
 
@@ -368,9 +187,9 @@ function main()
         close(f)
 
         if mode == "MPS2"
-            runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir)
+            runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir; suffix=suffix)
         elseif mode == "DetMPS"
-            runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir)
+            runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir; suffix=suffix)
         end
     end
 end

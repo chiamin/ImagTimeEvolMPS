@@ -2,14 +2,15 @@
 
 export JULIA_NUM_THREADS=1
 
-workdir="test"
-para="para"
+dirr=data/new/data4x4_N14_dtau0.02/
 comments=()
 
 # Print
-for ((i = 1; i <= 3; i++))
+for ((i = 1; i <= 10; i++))
 do
-    cmd="julia --sysimage ~/.julia/sysimages/sys_itensors.so ImagMPSComb.jl $para --dir=$workdir --suffix=_$i >> $workdir/out$i &"
+    workdir=$dirr/$i
+    mkdir -p $workdir
+    cmd="julia --sysimage ~/.julia/sysimages/sys_itensors.so ImagMPS.jl $workdir >> $workdir/out$i &"
     comments+=("$cmd")   # append to array
     echo $cmd 
 done
@@ -24,8 +25,6 @@ if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
 fi
 
 # Run
-mkdir -p $workdir
-
 for cmd in "${comments[@]}"
 do
   eval "$cmd"
