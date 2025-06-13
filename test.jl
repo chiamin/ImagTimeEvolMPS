@@ -34,9 +34,12 @@ function getEkEV(mps, Lx, Ly, tx, ty, U, xpbc, ypbc)
     sites = siteinds(mps)
     ampo = Hubbard(Lx, Ly, tx, ty, 0., 0., 0., 0., 0., xpbc, ypbc)
     Hk = MPO(ampo,sites)
+    Ek = inner(mps',Hk,mps)
+    if U == 0.
+        return Ek, 0.
+    end
     ampo = Hubbard(Lx, Ly, 0., 0., U, 0., 0., 0., 0., xpbc, ypbc)
     HV = MPO(ampo,sites)
-    Ek = inner(mps',Hk,mps)
     EV = inner(mps',HV,mps)
     return Ek, EV
 end
@@ -283,8 +286,8 @@ function main()
     Nup = 2
     Ndn = 2
     U = 8.
-    dtau = 0.02
-    N_samples = 100000
+    dtau = 0.05
+    N_samples = 10000
     write_step = 100
 
     # Make H MPO
@@ -293,13 +296,14 @@ function main()
     ampo = Hubbard(Lx, Ly, tx, ty, U, 0, 0, 0, 0, xpbc, ypbc)
     H = MPO(ampo,sites)
 
-    dir = "test"#ARGS[1]
+    dir = "../data/test"#ARGS[1]
 
     # Initialize MPS
     states = RandomState(N; Nup, Ndn)
     #states = ["Up","Dn","Dn","Up"]
     psi_init = MPS(sites, states)
-    en_init, psi_init = dmrg(H, psi_init; nsweeps=8, maxdim=[20,20,20,20,40,40,40,40,80,80,80,80], cutoff=[1e-14])
+    dims = [20,20,20,20]#,40,40,40,40,80,80,80,80]
+    en_init, psi_init = dmrg(H, psi_init; nsweeps=8, maxdim=dims, cutoff=[1e-14])
     #en_init, psi_init = dmrg(H, psi_init; nsweeps=4, maxdim=[2,2,2,2], cutoff=[1e-14])
     init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
 
@@ -320,10 +324,17 @@ function main()
     eig_dn = eigen(Cdn)
     U_up = eig_up.vectors
     U_dn = eig_dn.vectors
-    H_rot = transform_Hubbard_basis_real_NN(U_up, U_dn, Lx, Ly, tx, ty, U, xpbc, ypbc)
-    dims = [20,20,20,20]
-    en_init, psi_init = dmrg(H, psi_init; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
+    println(eig_up.values)
+    ampo = transform_Hubbard_basis_real_NN(U_up, U_dn, Lx, Ly, tx, ty, U, xpbc, ypbc)
+    H_rot = MPO(ampo, sites)
+    st = fill("Emp",N)
+    st[end] = st[end-1] = "UpDn"
+    println(st)
+    tt = MPS(sites, st)
+    dims = [20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20]
+    en_init, psi_init = dmrg(H_rot, tt; nsweeps=length(dims), maxdim=dims, cutoff=[1e-14])
     println("Initial energy = ",en_init)
+    println("oo ",inner(psi_init, tt)," ",inner(tt',H_rot,tt)," ",inner(psi_init',H_rot,psi_init)," ",norm(psi_init)," ",norm(tt))
     
     if false#folder_has_files(dir)
         println("$dir already has files. Do you want to continue?")
@@ -370,7 +381,7 @@ function main()
         println(file,"Init_MPS_conf ",states)
     end
 
-    for nsteps in [1]
+    for nsteps in [20,40,60,80]
         run(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir, U_up, U_dn)
     end
 end
