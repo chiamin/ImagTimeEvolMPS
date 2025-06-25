@@ -16,7 +16,7 @@ function initQMC(Lx::Int, Ly::Int, tx::Float64, ty::Float64, U::Float64, xpbc::B
     return Hk, expV_up, expV_dn, auxflds
 end
 
-# phis = [B_K/2|phi>, B_K B_V B_K/2|phi>, (B_K B_V)^2 B_K/2|phi>, ..., (B_K B_V)^{N-1} B_K/2|phi>]
+# phis = [B_K/2|phi>, (B_K B_V) B_K/2|phi>, (B_K B_V)^2 B_K/2|phi>, ..., (B_K B_V)^{N-1} B_K/2|phi>, (B_K/2 B_V) (B_K B_V)^{N-1} B_K/2|phi>]
 # length(phis) == N
 function initPhis(phi::Matrix{T}, expHk::Matrix{T}, expHk_half::Matrix{T}, auxflds::Vector{Vector{Int}}, expV::Vector{T})::Vector{Matrix{T}} where T
     N = length(auxflds)

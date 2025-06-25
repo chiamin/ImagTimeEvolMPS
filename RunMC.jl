@@ -251,11 +251,6 @@ function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
                 phiRc_dn = expHk_half_inv * phiR_dn[end-i]
                 measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
             end
-            # Measure at the first slice
-            if (i == 1)
-                O = ODet * conj(OMPS)
-                measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
-            end
         end
         tend("Det")
 
@@ -297,6 +292,11 @@ function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
                 phiRc_up = expHk_half * phi_up
                 phiRc_dn = expHk_half * phi_dn
                 measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
+            end
+            # Measure at the first slice
+            if (i == 1)
+                O = ODet * conj(OMPS)
+                measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
             end
         end
         tend("Det")
