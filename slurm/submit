@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH --job-name=test
+#SBATCH --partition=chiaminq
+#SBATCH --cpus-per-task=20
+#SBATCH --mem=3GB
+#SBATCH --time=24:00:00
+#SBATCH --constraint=
+
+echo "Node:               $SLURM_JOB_NODELIST"
+echo "Slurm User:         $SLURM_JOB_USER"
+echo "Job ID:             $SLURM_JOB_ID"
+echo "Job Name:           $SLURM_JOB_NAME"
+echo "Partition:          $SLURM_JOB_PARTITION"
+echo "Number of nodes:    $SLURM_JOB_NUM_NODES"
+echo "Number of cups:     $SLURM_CPUS_PER_TASK"
+echo "Memory:             $SLURM_MEM"
+echo "Time limit:         $SBATCH_TIMELIMIT"
+echo "Constrain:          $SBATCH_CONSTRAINT"
+echo "Submitted From:     $SLURM_SUBMIT_DIR"
+
+scratch=/cache1/chiamin/$SLURM_JOB_ID
+mkdir -p $scratch
+cp input $scratch
+cd $scratch
+echo "Working directory:  /cache1/chiamin/$SLURM_JOB_ID"
+cat input >> /home/chiamin/project/slurm/output
+srun echo test input >> /home/chiamin/project/slurm/output
+rm -r /cache1/chiamin/$SLURM_JOB_ID
