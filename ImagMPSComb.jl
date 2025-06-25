@@ -194,6 +194,8 @@ function main()
             runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir; suffix=suffix)
         elseif mode == "DetMPS"
             runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir; suffix=suffix)
+        elseif mode == "DetDet"
+            runMonteCarlo_Det_Det(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, phiT_up, phiT_dn, phiT_up, phiT_dn, write_step, dir; suffix=suffix)
         end
     end
 end
