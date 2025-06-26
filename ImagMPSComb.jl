@@ -89,14 +89,15 @@ function main()
         H = MPO(ampo,sites)
 
         # Initialize MPS
-        states = ["Up","Dn","Dn","Up"]#RandomState(N; Nup, Ndn)
+        #states = ["Up","Dn","Dn","Up"]#RandomState(N; Nup, Ndn)
+        states = RandomState(N; Nup, Ndn)
         psi_init = MPS(sites, states)
         en_init, psi_init = dmrg(H, psi_init; nsweeps=length(initDMRG_dims), maxdim=initDMRG_dims, cutoff=[1e-14])
         init_D = maximum([linkdim(psi_init, i) for i in 1:N-1])
         println("Initial energy = ",en_init)
 
         # Write initial MPS to file
-        writeMPS(psi_init,dir*"/initMPS.txt")
+        #writeMPS(psi_init,dir*"/initMPS.txt")
 
         # Get exact energy from DMRG
         E_GS, psi_GS = dmrg(H, psi_init; nsweeps=length(GS_DMRG_dims), maxdim=GS_DMRG_dims, cutoff=[1e-14])
