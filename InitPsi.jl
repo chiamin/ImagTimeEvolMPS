@@ -25,7 +25,6 @@ let
     writeInitFile = params["writeInitFile"]
     mode = params["mode"]
     initDMRG_dims = params["initDMRG_dims"]
-    GS_DMRG_dims = params["GS_DMRG_dims"]
     seed = params["randSeed"]
     suffix = get(params, "suffix", "")
 
