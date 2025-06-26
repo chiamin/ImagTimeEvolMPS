@@ -311,3 +311,15 @@ function RandomConf(Nsites; Nup, Ndn, seed=0)
     end
     return conf
 end
+
+function getEkEV(mps, Lx, Ly, tx, ty, U, xpbc, ypbc)
+    sites = siteinds(mps)
+    ampo = Hubbard(Lx, Ly, tx, ty, 0., 0., 0., 0., 0., xpbc, ypbc)
+    Hk = MPO(ampo,sites)
+    ampo = Hubbard(Lx, Ly, 0., 0., U, 0., 0., 0., 0., xpbc, ypbc)
+    HV = MPO(ampo,sites)
+    Ek = inner(mps',Hk,mps)
+    EV = inner(mps',HV,mps)
+    return Ek, EV
+end
+

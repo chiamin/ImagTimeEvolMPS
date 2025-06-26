@@ -2,7 +2,7 @@ include("SampleMPSDet.jl")
 include("SampleOcc.jl")
 include("DetTools.jl")
 include("Measure.jl")
-using Combinatorics, LinearAlgebra, BitIntegers
+using Combinatorics, LinearAlgebra, BitIntegers, DataStructures
 
 # Util to parse strings into types
 function parse_value(s::AbstractString)
@@ -37,7 +37,7 @@ end
 
 # Read from config file
 function read_params(filename::AbstractString)
-    params = Dict{String, Any}()
+    params = OrderedDict{String, Any}()
     for line in eachline(filename)
         stripped = strip(line)
         isempty(stripped) && continue
@@ -55,7 +55,7 @@ end
 
 # Parse --key=value from ARGS
 function parse_args(args)
-    options = Dict{String, String}()
+    options = OrderedDict{String, String}()
     for arg in args
         if occursin("=", arg)
             key, val = split(arg, "=", limit=2)
@@ -66,7 +66,7 @@ function parse_args(args)
 end
 
 # Override config values with CLI args
-function override_params_with_args!(params::Dict{String,Any}, args::Dict{String,String})
+function override_params_with_args!(params::OrderedDict{String,Any}, args::OrderedDict{String,String})
     for (key, val_str) in args
         key_clean = replace(key, r"^--" => "")
         params[key_clean] = parse_line_value(val_str)
