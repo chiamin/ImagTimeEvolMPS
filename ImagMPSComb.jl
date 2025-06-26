@@ -170,6 +170,7 @@ function main()
             println(file,"E_phiT ",E_phiT)
             println(file,"Ek_phiT ",Ek_phiT)
             println(file,"EV_phiT ",EV_phiT)
+            println(file,"suffix ",suffix)
         end
 
         f = h5open(dir*"/psi.h5","w")
