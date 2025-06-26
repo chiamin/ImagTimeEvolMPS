@@ -373,8 +373,8 @@ function runMonteCarlo_Det_Det(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     # Reset the timer
     treset()
 
-    fileC = open(dir*"/c_ntau"*string(nsteps)*suffix*".dat","w")
-    file1 = open(dir*"/l_ntau"*string(nsteps)*suffix*".dat","w")
+    fileC = open(dir*"/c_"*suffix*".dat","w")
+    file1 = open(dir*"/l_"*suffix*".dat","w")
     # Write the observables' names
     println(fileC,"step Ek EV E sign nup ndn")
     println(file1,"step Ek EV E sign nup ndn")
