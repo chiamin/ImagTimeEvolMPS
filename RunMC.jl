@@ -50,7 +50,7 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     # Reset the timer
     treset()
 
-    file = open(dir*"/ntau"*string(nsteps)*suffix*".dat","w")
+    file = open(dir*"/c"*suffix*".dat","w")
     # Write the observables' names
     println(file,"step Ek EV E sign nup ndn")
 
@@ -214,8 +214,8 @@ function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     # Reset the timer
     treset()
 
-    fileC = open(dir*"/c_ntau"*string(nsteps)*suffix*".dat","w")
-    file1 = open(dir*"/l_ntau"*string(nsteps)*suffix*".dat","w")
+    fileC = open(dir*"/c"*suffix*".dat","w")
+    file1 = open(dir*"/l"*suffix*".dat","w")
     # Write the observables' names
     println(fileC,"step Ek EV E sign nup ndn")
     println(file1,"step Ek EV E sign nup ndn")
