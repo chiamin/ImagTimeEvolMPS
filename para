@@ -1,20 +1,22 @@
-Lx = 2
-Ly = 2
+Lx = 4
+Ly = 4
 tx = 1.0
 ty = 1.0
 xPBC = false
 yPBC = false
-Nup = 2
-Ndn = 2
+Nup = 7
+Ndn = 7
 U = 8.0
 dtau = 0.02
 nsteps = 10
 N_samples = 4
 write_step = 10
 dir = ../data/test
-mode = DetMPS
+mode = MPSMPSRot
+randSeed = 0
+InitFile = NatOrb/psi.h5
+
+# For ground-state calculations
 writeInitFile = init
 initDMRG_dims = [2,2,2,2]
 GS_DMRG_dims = [10,10,20,20,20]
-randSeed = 0
-InitPsi = ../data/test/psi_D.h5

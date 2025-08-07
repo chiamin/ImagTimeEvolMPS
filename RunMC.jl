@@ -1,3 +1,6 @@
+include("Rot/DetProdOverlapRot.jl")
+include("Rot/DetToolsRot.jl")
+include("Rot/SampleMPSDetRot.jl")
 
 function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step, dir; suffix="")
     Nsites = Lx*Ly
@@ -113,6 +116,185 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
         conf_end, OMPS2 = sampleMPS!(conf_end, mpsM, phiL_up[end], phiL_dn[end], latt)
         # Update phiR[1]
         phi_up, phi_dn = prodDetUpDn(conf_end)
+        phiR_up[1] = expHk_half * phi_up
+        phiR_dn[1] = expHk_half * phi_dn
+        tend("MPS")
+        #@assert abs(OMPS2-MPSOverlap(conf_end, mps)) < 1e-14    # Check MPS overlap
+
+
+
+        # 4. Sample the auxiliary fields from right to left
+        #    ODet: <conf1|BB...B|conf2>
+        tstart("Det")
+        for i=Ntau:-1:1
+            # Sample the fields
+            phi_up, phi_dn, ODet, auxflds[i] = sampleAuxField(phiL_up[i], phiL_dn[i], phiR_up[end-i], phiR_dn[end-i],
+                                                              expV_up, expV_dn, auxflds[i], false)
+            # Propagate B_K
+            if i == 1
+                phiR_up[end-i+1] = expHk_half * phi_up
+                phiR_dn[end-i+1] = expHk_half * phi_dn
+            else
+                phiR_up[end-i+1] = expHk * phi_up
+                phiR_dn[end-i+1] = expHk * phi_dn
+            end
+
+            # Measure at the center slice
+            if (i == c+1)
+                O = ODet * conj(OMPS1) * OMPS2
+                phiLc_up = expHk_half_inv * phiL_up[i]
+                phiLc_dn = expHk_half_inv * phiL_dn[i]
+                phiRc_up = expHk_half * phi_up
+                phiRc_dn = expHk_half * phi_dn
+                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
+            end
+            G_up = Greens_function(phiL_up[i], phiR_up[end-i+1])
+            G_dn = Greens_function(phiL_dn[i], phiR_dn[end-i+1])
+            Ek = kinetic_energy(G_up, G_dn, Hk)
+            EV = potential_energy(G_up, G_dn, U)
+            E = Ek+EV
+            O = ODet * conj(OMPS1) * OMPS2
+            println(i,": ",Ek,", ",EV,", ",E,", ",O,", ",E/O)
+        end
+        tend("Det")
+
+
+        # Write the observables
+        if iMC%write_step == 0
+            println(nsteps,": ",iMC,"/",N_samples)
+            Eki = getObs(obs, "Ek")
+            EVi = getObs(obs, "EV")
+            Ei = getObs(obs, "E")
+            nupi = getObs(obs, "nup")
+            ndni = getObs(obs, "ndn")
+            si = getObs(obs, "sign")
+
+            println(file,iMC," ",Eki," ",EVi," ",Ei," ",si," ",nupi," ",ndni)
+            flush(file)
+
+            cleanObs!(obs)
+        end
+    end
+
+    close(file)
+    println("Total time: ")
+    display(timer)
+end
+
+function runMonteCarlo_MPS_MPS_Rot(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, mps, write_step, dir, U_up, U_dn; suffix="")
+    Nsites = Lx*Ly
+    Npar = Nup+Ndn
+    tau = dtau * nsteps
+
+    # Initialize for QMC
+    Hk, expV_up, expV_dn, auxflds = initQMC(Lx, Ly, tx, ty, U, xpbc, ypbc, dtau, nsteps, Nsites)
+    expHk = exp(-dtau*Hk)
+    expHk_half = exp(-0.5*dtau*Hk)
+    expHk_half_inv = exp(+0.5*dtau*Hk)
+    Ntau = length(auxflds)
+
+    # Initialize product states by sampling the MPS
+    conf_beg = ITensorMPS.sample(mps)
+    conf_end = deepcopy(conf_beg)
+    println("Initial conf: ",conf_beg," ",conf_end)
+    phi1_up, phi1_dn = prodDetUpDnRot(conf_beg, U_up, U_dn)
+    phi2_up, phi2_dn = prodDetUpDnRot(conf_end, U_up, U_dn)
+
+    open(dir*"/init.dat","a") do file
+        println(file,"Initial_conf: ",conf_beg," ",conf_end)
+    end
+        
+    # Compute the overlaps
+    OMPS1 = MPSOverlap(conf_beg, mps)
+    OMPS2 = MPSOverlap(conf_end, mps)
+
+    # Initialize all the determinants
+    phiL_up = initPhis(phi1_up, expHk, expHk_half, auxflds, expV_up)
+    phiR_up = initPhis(phi2_up, expHk, expHk_half, reverse(auxflds), expV_up)
+    phiL_dn = initPhis(phi1_dn, expHk, expHk_half, auxflds, expV_dn)
+    phiR_dn = initPhis(phi2_dn, expHk, expHk_half, reverse(auxflds), expV_dn)
+    @assert length(phiL_up) == Ntau + 1
+    @assert length(phiR_up) == Ntau + 1
+    @assert length(phiL_dn) == Ntau + 1
+    @assert length(phiR_dn) == Ntau + 1
+
+    # Initialize observables
+    obs = Dict{String,Any}()
+
+    # Store some objects that will be used in measurement
+    para = Dict{String,Any}()
+    para["Hk"] = Hk
+    para["U"] = U
+
+    # Initialize MPS machine which is efficient in computing the overlap with a product state
+    mpsM = makeProdMPS(mps)
+
+    # Reset the timer
+    treset()
+
+    file = open(dir*"/c"*suffix*".dat","w")
+    # Write the observables' names
+    println(file,"step Ek EV E sign nup ndn")
+
+
+
+    # Monte Carlo sampling
+    latt = makeSquareLattice(Lx, Ly, xpbc, ypbc)
+    c = div(Ntau,2)
+    for iMC=1:N_samples
+        # 1. Sample the left product state
+        #    OMPS1: <MPS|conf1>
+        tstart("MPS")
+        conf_beg, OMPS1 = sampleMPSRot!(conf_beg, mpsM, phiR_up[end], phiR_dn[end], latt, U_up, U_dn)
+        # Update phiL[1]
+        phi_up, phi_dn = prodDetUpDnRot(conf_beg, U_up, U_dn)
+        phiL_up[1] = expHk_half * phi_up
+        phiL_dn[1] = expHk_half * phi_dn
+        tend("MPS")
+        #@assert abs(OMPS1-MPSOverlap(conf_beg, mps)) < 1e-14    # Check MPS overlap
+
+        # 2. Sample the auxiliary fields from left to right
+        #    ODet: <conf1|BB...B|conf2>
+        tstart("Det")
+        for i=1:Ntau
+            # Sample the fields
+            phi_up, phi_dn, ODet, auxflds[i] = sampleAuxField(phiL_up[i], phiL_dn[i], phiR_up[end-i], phiR_dn[end-i],
+                                                              expV_up, expV_dn, auxflds[i], true)
+            # Propagate B_K
+            if i == Ntau
+                phiL_up[i+1] = expHk_half * phi_up
+                phiL_dn[i+1] = expHk_half * phi_dn
+            else
+                phiL_up[i+1] = expHk * phi_up
+                phiL_dn[i+1] = expHk * phi_dn
+            end
+
+            # Measure at the center slice
+            if (i == c)
+                O = ODet * conj(OMPS1) * OMPS2
+                phiLc_up = expHk_half * phi_up
+                phiLc_dn = expHk_half * phi_dn
+                phiRc_up = expHk_half_inv * phiR_up[end-i]
+                phiRc_dn = expHk_half_inv * phiR_dn[end-i]
+                measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
+            end
+            G_up = Greens_function(phiL_up[i], phiR_up[end-i+1])
+            G_dn = Greens_function(phiL_dn[i], phiR_dn[end-i+1])
+            Ek = kinetic_energy(G_up, G_dn, Hk)
+            EV = potential_energy(G_up, G_dn, U)
+            E = Ek+EV
+            O = ODet * conj(OMPS1) * OMPS2
+            println(i,": ",Ek,", ",EV,", ",E,", ",O,", ",E/O)
+        end
+        tend("Det")
+
+
+        # 3. Sample the right product state
+        #    OMPS2: <conf2|MPS>
+        tstart("MPS")
+        conf_end, OMPS2 = sampleMPSRot!(conf_end, mpsM, phiL_up[end], phiL_dn[end], latt, U_up, U_dn)
+        # Update phiR[1]
+        phi_up, phi_dn = prodDetUpDnRot(conf_end, U_up, U_dn)
         phiR_up[1] = expHk_half * phi_up
         phiR_dn[1] = expHk_half * phi_dn
         tend("MPS")

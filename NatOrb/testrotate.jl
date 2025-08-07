@@ -1,7 +1,7 @@
 #!/Users/srw/.juliaup/bin/julia
 include("GivensVijkl.jl")
 using ITensors, ITensorMPS, LinearAlgebra
-using .GivensVijkl
+#using GivensVijkl
 using HDF5
 
 function eig(M::Matrix{Float64})
@@ -43,7 +43,7 @@ for ix=1:Nx, iy=1:Ny
 end
 H = MPO(ampo,sites)
 
-maxdim = [20,20,30,30,50,70,100,150,200,300,400,600,900,1200]
+maxdim = [20,20,30,30,50,70,100,150,200,300,400,600,600,900,900,1200,1200]
 nsweeps = length(maxdim)
 cutoff = 1e-11
 noise = [1e-7]
@@ -57,6 +57,12 @@ energy, psi = dmrg(H,psi; nsweeps, cutoff, maxdim,noise)
 
 rhoup = correlation_matrix(psi,"Cdagup","Cup")
 rhodn = correlation_matrix(psi,"Cdagdn","Cdn")
+
+println("diff norm = ",norm(rhoup-rhodn))
+eval_up,U_up = eig(rhoup)
+eval_dn,U_dn = eig(rhodn)
+
+
 rhotot = rhoup+rhodn
 occs,nos = diagrho(rhotot)
 for i=1:N
@@ -81,6 +87,9 @@ for i=1:5
 end
 
 f = h5open("psi.h5","w")
+write(f,"U_up",U_up)
+write(f,"U_dn",U_dn)
+write(f,"U",nos)
 write(f,"psi",npsi)
 close(f)
 

@@ -50,7 +50,7 @@ function main()
     mode = params["mode"]
     seed = params["randSeed"]
     suffix = get(params, "suffix", "")
-    InitPsi = params["InitPsi"]
+    InitFile = params["InitFile"]
     InfoFile = get(params, "InfoFile", "info")
 
     if seed == 0
@@ -65,11 +65,19 @@ function main()
         println(io, "RandomNumberSeed = ",seed)
     end
 
-    f = h5open(InitPsi,"r")
-    psi_init = read(f,"psi_init",MPS)
-    phiT_up = read(f["phiT_up"])
-    phiT_dn = read(f["phiT_dn"])
-    close(f)
+    if mode == "MPSMPSRot"
+        f = h5open(InitFile,"r")
+        psi_init = read(f,"psi",MPS)
+        URot = read(f["U"])
+        close(f)
+    else
+        f = h5open(InitFile,"r")
+        psi_init = read(f,"psi_init",MPS)
+        phiT_up = read(f["phiT_up"])
+        phiT_dn = read(f["phiT_dn"])
+        close(f)
+    end
+
 
     for (k, v) in params
         println("$k = $v")
@@ -81,6 +89,8 @@ function main()
         runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, phiT_up, phiT_dn, write_step, dir; suffix=suffix)
     elseif mode == "DetDet"
         runMonteCarlo_Det_Det(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, phiT_up, phiT_dn, phiT_up, phiT_dn, write_step, dir; suffix=suffix)
+    elseif mode == "MPSMPSRot"
+        runMonteCarlo_MPS_MPS_Rot(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir, URot, URot; suffix=suffix)
     else
     	error("undefined mode")
     end
