@@ -4,3 +4,4 @@ test/
 **/*.dat
 data/
 **/*.h5
+**/*.txt

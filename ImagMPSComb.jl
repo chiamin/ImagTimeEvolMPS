@@ -92,7 +92,7 @@ function main()
     elseif mode == "MPSMPSRot"
         runMonteCarlo_MPS_MPS_Rot(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, nsteps, N_samples, psi_init, write_step, dir, URot, URot; suffix=suffix)
     else
-    	error("undefined mode")
+        error("Invalid mode: $mode")
     end
 end
 

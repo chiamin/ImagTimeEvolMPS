@@ -21,9 +21,9 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
     phi1_up, phi1_dn = prodDetUpDn(conf_beg)
     phi2_up, phi2_dn = prodDetUpDn(conf_end)
 
-    open(dir*"/init.dat","a") do file
-        println(file,"Initial_conf: ",conf_beg," ",conf_end)
-    end
+    #open(dir*"/init.dat","a") do file
+    #    println(file,"Initial_conf: ",conf_beg," ",conf_end)
+    #end
         
     # Compute the overlaps
     OMPS1 = MPSOverlap(conf_beg, mps)

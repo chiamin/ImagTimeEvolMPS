@@ -236,8 +236,8 @@ function main()
     println("Initial energy = ",en_init)
 
     # Write initial MPS to file
-    writeMPS(psi_init,"initMPS.txt")
-    error("stop")
+    #writeMPS(psi_init,"initMPS.txt")
+    #error("stop")
 
     # Get exact energy from DMRG
     dims = [80,80,80,80,160,160,160,160,320,320,320,320,640]
