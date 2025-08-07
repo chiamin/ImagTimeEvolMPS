@@ -96,6 +96,13 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
                 phiRc_dn = expHk_half_inv * phiR_dn[end-i]
                 measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
             end
+            G_up = Greens_function(phiL_up[i], phiR_up[end-i+1])
+            G_dn = Greens_function(phiL_dn[i], phiR_dn[end-i+1])
+            Ek = kinetic_energy(G_up, G_dn, Hk)
+            EV = potential_energy(G_up, G_dn, U)
+            E = Ek+EV
+            O = ODet * conj(OMPS1) * OMPS2
+            println(i,": ",Ek,", ",EV,", ",E,", ",O,", ",E/O)
         end
         tend("Det")
 
@@ -138,6 +145,13 @@ function runMonteCarlo_MPS_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
                 phiRc_dn = expHk_half * phi_dn
                 measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obs, para)
             end
+            G_up = Greens_function(phiL_up[i], phiR_up[end-i+1])
+            G_dn = Greens_function(phiL_dn[i], phiR_dn[end-i+1])
+            Ek = kinetic_energy(G_up, G_dn, Hk)
+            EV = potential_energy(G_up, G_dn, U)
+            E = Ek+EV
+            O = ODet * conj(OMPS1) * OMPS2
+            println(i,": ",Ek,", ",EV,", ",E,", ",O,", ",E/O)
         end
         tend("Det")
 
@@ -251,6 +265,14 @@ function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
                 phiRc_dn = expHk_half_inv * phiR_dn[end-i]
                 measure!(phiLc_up, phiLc_dn, phiRc_up, phiRc_dn, sign(O), obsC, para)
             end
+
+            G_up = Greens_function(phiL_up[i], phiR_up[end-i+1])
+            G_dn = Greens_function(phiL_dn[i], phiR_dn[end-i+1])
+            Ek = kinetic_energy(G_up, G_dn, Hk)
+            EV = potential_energy(G_up, G_dn, U)
+            E = Ek+EV
+            O = ODet * conj(OMPS)
+            println(i,": ",Ek,", ",EV,", ",E,", ",O,", ",E/O)
         end
         tend("Det")
 
@@ -298,6 +320,15 @@ function runMonteCarlo_Det_MPS(Lx, Ly, tx, ty, xpbc, ypbc, Nup, Ndn, U, dtau, ns
                 O = ODet * conj(OMPS)
                 measure!(phiL_up[1], phiL_dn[1], phiR_up[end], phiR_dn[end], sign(O), obs1, para)
             end
+            
+            G_up = Greens_function(phiL_up[i], phiR_up[end-i+1])
+            G_dn = Greens_function(phiL_dn[i], phiR_dn[end-i+1])
+            Ek = kinetic_energy(G_up, G_dn, Hk)
+            EV = potential_energy(G_up, G_dn, U)
+            E = Ek+EV
+            O = ODet * conj(OMPS)
+            println(i,": ",Ek,", ",EV,", ",E,", ",O,", ",E/O)
+
         end
         tend("Det")
 
