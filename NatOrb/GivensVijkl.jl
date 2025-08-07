@@ -1,10 +1,10 @@
-module GivensVijkl
+#module GivensVijkl
 using ITensors, ITensorMPS, LinearAlgebra
 include("Util.jl")
 using .Util
 using PrecompileTools: @compile_workload    # this is a small dependency
 
-export applygates, getgates, getVijkl, checkgates, getVijklupdn
+#export applygates, getgates, getVijkl, checkgates, getVijklupdn
 
 # Gate = (angle, i, j)
 
@@ -268,5 +268,5 @@ end
 end
 
 
-end
+#end
 

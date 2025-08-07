@@ -2,14 +2,14 @@ using ITensors
 using Test
 using Random
 using StatsBase
-include("EDTwoParticles.jl")
-include("Hamiltonian.jl")
-include("DetProdOverlap.jl")
-include("SquareLattice.jl")
-include("SampleOcc.jl")
-include("Measure.jl")
-include("DetTools.jl")
-include("ProdMPS.jl")
+include("../EDTwoParticles.jl")
+include("../Hamiltonian.jl")
+include("../DetProdOverlap.jl")
+include("../SquareLattice.jl")
+include("../SampleOcc.jl")
+include("../Measure.jl")
+include("../DetTools.jl")
+include("../ProdMPS.jl")
 
 # Return the relative sign between MPS and determinant ordering for a configuration
 # An MPS has the ordering: 1_up, 1_dn, 2_up, 2_dn, ....
